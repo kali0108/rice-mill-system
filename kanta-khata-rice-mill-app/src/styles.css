@@ -12,6 +12,10 @@ table{font-variant-numeric:tabular-nums;}
 .app{display:flex; min-height:100vh;}
 
 .boot-loading{display:flex; align-items:center; justify-content:center; height:100vh; color:var(--muted); font-family:'Fraunces',serif; font-size:18px;}
+.status-screen{display:flex; align-items:center; justify-content:center; height:100vh; padding:20px; background:var(--paper);}
+.status-card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:34px; max-width:420px; text-align:center;}
+.status-card h1{font-size:19px; margin-bottom:12px;}
+.status-card p{font-size:13.5px; color:var(--muted); line-height:1.6; margin-bottom:20px;}
 
 /* Sidebar */
 .sidebar{width:236px; flex-shrink:0; background:var(--ink); color:#E9E3D2; padding:22px 14px; display:flex; flex-direction:column; gap:2px;}

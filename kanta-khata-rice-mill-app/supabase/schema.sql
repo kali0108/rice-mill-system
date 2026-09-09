@@ -1,37 +1,77 @@
 -- ============================================================================
--- Kanta Khata — Rice Mill Manager — Supabase Schema
+-- Kanta Khata — Rice Mill Manager — Supabase Schema (v2: user management)
 -- Paste this whole file into: Supabase Dashboard -> SQL Editor -> New Query -> Run
--- Safe to re-run only on a fresh project (it creates types/tables that must not
--- already exist). If you need to re-run after edits, drop the objects first.
+-- This version is for a FRESH project. If you already ran the earlier schema,
+-- use supabase/migration_02_user_management.sql instead.
 -- ============================================================================
 
--- ---------- Roles & Profiles ----------------------------------------------
-create type user_role as enum ('owner','munshi','godown_incharge','sales_staff');
+-- ---------- Roles, status & Profiles ----------------------------------------
+-- 'pending' = signed up without an invite; has zero permissions until the
+-- Owner approves them from the Users & Roles page.
+create type user_role as enum ('owner','munshi','godown_incharge','sales_staff','pending');
 
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text default '',
-  role user_role not null default 'sales_staff',
+  role user_role not null default 'pending',
+  status text not null default 'active' check (status in ('active','suspended')),
   created_at timestamptz not null default now()
 );
 
--- Helper: current caller's role (security definer so it can read profiles
--- even before/under RLS, avoiding recursive policy checks).
+-- Current caller's role — returns NULL (matches no policy) if the account is
+-- suspended, so suspending someone silently revokes every permission at once.
+-- security definer so it can read profiles under its own RLS-bypassing
+-- privileges, avoiding recursive-policy issues on the profiles table itself.
 create or replace function my_role() returns user_role
 language sql stable security definer set search_path = public as $$
-  select role from profiles where id = auth.uid();
+  select role from profiles where id = auth.uid() and status = 'active';
 $$;
 
+-- Lets the (unauthenticated) login screen show "this will create the Owner
+-- account" messaging without exposing any user data.
+create or replace function owner_exists() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists(select 1 from profiles where role = 'owner');
+$$;
+grant execute on function owner_exists() to anon, authenticated;
+
+create table invited_emails (
+  email text primary key,
+  full_name text default '',
+  role user_role not null default 'sales_staff',
+  invited_by uuid references auth.users(id),
+  invited_at timestamptz not null default now(),
+  used boolean not null default false
+);
+
 -- New Supabase auth user -> auto-create a profile row.
--- First person to ever sign up becomes 'owner'; everyone after defaults to
--- 'sales_staff' until the owner changes their role on the Users page.
+--  1. First person ever to sign up becomes Owner.
+--  2. If their email matches a pending invite, they get the invited role
+--     immediately (and the invite is marked used).
+--  3. Otherwise they land in 'pending' — visible to the Owner, but with no
+--     read/write access anywhere until approved.
 create or replace function handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare cnt int;
+declare
+  cnt int;
+  inv invited_emails%rowtype;
 begin
   select count(*) into cnt from profiles;
-  insert into profiles (id, full_name, role)
-  values (new.id, coalesce(new.raw_user_meta_data->>'full_name',''), case when cnt = 0 then 'owner'::user_role else 'sales_staff'::user_role end);
+  if cnt = 0 then
+    insert into profiles (id, full_name, role, status)
+    values (new.id, coalesce(new.raw_user_meta_data->>'full_name',''), 'owner', 'active');
+    return new;
+  end if;
+
+  select * into inv from invited_emails where lower(email) = lower(new.email) and used = false limit 1;
+  if found then
+    insert into profiles (id, full_name, role, status)
+    values (new.id, coalesce(nullif(new.raw_user_meta_data->>'full_name',''), inv.full_name), inv.role, 'active');
+    update invited_emails set used = true where email = inv.email;
+  else
+    insert into profiles (id, full_name, role, status)
+    values (new.id, coalesce(new.raw_user_meta_data->>'full_name',''), 'pending', 'active');
+  end if;
   return new;
 end; $$;
 
@@ -39,19 +79,44 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function handle_new_user();
 
--- Only the owner may change someone's role (called via supabase.rpc from the Users page).
-create or replace function set_user_role(target_user uuid, new_role user_role) returns void
+-- Owner-only: invite someone by email with a pre-assigned role.
+create or replace function invite_user(target_email text, target_full_name text, target_role user_role) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  if my_role() <> 'owner' then
-    raise exception 'Only the Owner can change roles';
+  if my_role() <> 'owner' then raise exception 'Only the Owner can invite staff'; end if;
+  if target_role = 'pending' then raise exception 'Cannot invite someone as pending'; end if;
+  insert into invited_emails (email, full_name, role, invited_by)
+  values (lower(target_email), target_full_name, target_role, auth.uid())
+  on conflict (email) do update set full_name = excluded.full_name, role = excluded.role, used = false, invited_at = now();
+end; $$;
+
+-- Owner-only: withdraw an invite that hasn't been used yet.
+create or replace function revoke_invite(target_email text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if my_role() <> 'owner' then raise exception 'Only the Owner can revoke invites'; end if;
+  delete from invited_emails where email = lower(target_email) and used = false;
+end; $$;
+
+-- Owner-only: edit an existing staff member's name / role / active-suspended status.
+create or replace function admin_update_profile(target_user uuid, new_full_name text, new_role user_role, new_status text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if my_role() <> 'owner' then raise exception 'Only the Owner can edit staff accounts'; end if;
+  if new_status not in ('active','suspended') then raise exception 'Invalid status'; end if;
+  if new_role = 'pending' and target_user in (select id from profiles where role='owner') then
+    raise exception 'Cannot demote the Owner to pending';
   end if;
-  update profiles set role = new_role where id = target_user;
+  update profiles set full_name = coalesce(new_full_name, full_name), role = new_role, status = new_status
+  where id = target_user;
 end; $$;
 
 alter table profiles enable row level security;
 create policy "profiles_read" on profiles for select using (auth.uid() = id or my_role() = 'owner');
 create policy "profiles_update_own_name" on profiles for update using (auth.uid() = id) with check (auth.uid() = id);
+
+alter table invited_emails enable row level security;
+create policy "invited_owner_all" on invited_emails for all using (my_role() = 'owner') with check (my_role() = 'owner');
 
 -- ---------- Core operational tables ----------------------------------------
 
@@ -85,7 +150,7 @@ create table ledger_entries (
   description text default '',
   debit numeric not null default 0,
   credit numeric not null default 0,
-  source text not null default 'manual', -- manual | purchase | sale | payment
+  source text not null default 'manual',
   source_id uuid,
   created_by uuid references auth.users(id) default auth.uid(),
   created_at timestamptz not null default now()
@@ -146,12 +211,12 @@ create table payments (
   date date not null,
   party_type text not null,
   party_name text not null,
-  direction text not null, -- Paid | Received
+  direction text not null,
   method text not null default 'Cash',
   amount numeric not null default 0,
   cheque_no text default '',
   due_date date,
-  status text not null default 'Cleared', -- Pending | Cleared | Bounced
+  status text not null default 'Cleared',
   created_by uuid references auth.users(id) default auth.uid(),
   created_at timestamptz not null default now()
 );
@@ -171,12 +236,10 @@ create table labor_entries (
   created_at timestamptz not null default now()
 );
 
--- ---------- New modules ------------------------------------------------
-
 create table transport_entries (
   id uuid primary key default gen_random_uuid(),
   date date not null,
-  entry_type text not null default 'Delivery', -- Loading | Unloading | Delivery | Arhti Commission
+  entry_type text not null default 'Delivery',
   vehicle_no text default '',
   driver_name text default '',
   from_location text default '',
@@ -201,7 +264,7 @@ create table machinery_log (
   action_taken text default '',
   cost numeric default 0,
   next_service_due date,
-  status text not null default 'Operational', -- Operational | Under Repair
+  status text not null default 'Operational',
   created_by uuid references auth.users(id) default auth.uid(),
   created_at timestamptz not null default now()
 );
@@ -209,7 +272,7 @@ create table machinery_log (
 create table expenses (
   id uuid primary key default gen_random_uuid(),
   date date not null,
-  category text not null default 'Other', -- Diesel | Electricity | Spare Parts | Transport-Misc | Chai-Pani | Other
+  category text not null default 'Other',
   description text default '',
   amount numeric not null default 0,
   paid_via text not null default 'Cash',
@@ -220,12 +283,12 @@ create table expenses (
 create table tax_records (
   id uuid primary key default gen_random_uuid(),
   date date not null,
-  tax_type text not null default 'Sales Tax/GST', -- Sales Tax/GST | Withholding Tax
+  tax_type text not null default 'Sales Tax/GST',
   reference text default '',
   taxable_amount numeric not null default 0,
   tax_pct numeric not null default 0,
   tax_amount numeric not null default 0,
-  status text not null default 'Pending', -- Filed | Pending
+  status text not null default 'Pending',
   notes text default '',
   created_by uuid references auth.users(id) default auth.uid(),
   created_at timestamptz not null default now()
@@ -299,7 +362,6 @@ end; $$;
 create trigger trg_payment_ledger after insert on payments
 for each row execute function ledger_from_payment();
 
--- Clean up the auto ledger entry if its source row is deleted.
 create or replace function ledger_cleanup() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
@@ -337,7 +399,9 @@ end $$;
 alter table activity_log enable row level security;
 create policy "activity_read_owner" on activity_log for select using (my_role() = 'owner');
 
--- ---------- RLS: read policies (any signed-in staff can read everything) ---
+-- ---------- RLS: read policies -----------------------------------------
+-- Any *approved* staff member (not pending, not suspended) can read every
+-- operational table. Pending/suspended accounts get nothing back from these.
 
 do $$
 declare t text;
@@ -347,12 +411,11 @@ begin
                             'tax_records','zakat_assessments']
   loop
     execute format('alter table %1$s enable row level security;', t);
-    execute format('create policy "%1$s_read" on %1$s for select using (auth.role() = ''authenticated'');', t);
+    execute format('create policy "%1$s_read" on %1$s for select using (my_role() in (''owner'',''munshi'',''godown_incharge'',''sales_staff''));', t);
   end loop;
 end $$;
 
 -- ---------- RLS: write policies per role -----------------------------------
--- owner: everything. munshi: money modules. godown_incharge: mill-floor modules. sales_staff: sales.
 
 create policy "purchases_write" on purchases for insert with check (my_role() in ('owner','munshi'));
 create policy "purchases_update" on purchases for update using (my_role() in ('owner','munshi'));
@@ -408,9 +471,11 @@ create index on purchases (date);
 create index on sales (date);
 create index on payments (status, due_date);
 create index on stock_lots (godown);
+create index on activity_log (created_at desc);
+create index on activity_log (table_name);
 
 -- ============================================================================
--- Done. Next: Authentication -> Providers -> make sure Email is enabled,
--- and (recommended for a small internal team) turn OFF "Confirm email" under
--- Authentication -> Settings so staff can sign in immediately after signup.
+-- Done. Next: Authentication -> Settings -> turn ON "Confirm email" (this is
+-- the confirmation step for every signup, including the very first Owner
+-- account). Authentication -> Providers -> Email should already be enabled.
 -- ============================================================================

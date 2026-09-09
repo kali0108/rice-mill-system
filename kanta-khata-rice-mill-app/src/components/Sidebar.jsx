@@ -16,6 +16,7 @@ const ICON = {
   tax: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="2.5" width="14" height="15" rx="1.4"/><path d="M6.5 6.5h7M6.5 10h7M6.5 13.5h4"/></svg>,
   reports: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17V8M9 17V3M15 17v-6"/><path d="M2.5 17h15"/></svg>,
   users: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="6.5" r="2.6"/><path d="M2 16c.5-3.3 2.2-5 5-5s4.5 1.7 5 5"/><circle cx="15" cy="7.5" r="2"/><path d="M13 11.2c2 .2 3.3 1.7 3.7 4.8"/></svg>,
+  activity: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 10.5h3l1.8-5 3.4 9 1.8-5.5h3.2l1.8 2.5"/></svg>,
 };
 
 const NAV = [
@@ -47,9 +48,14 @@ export default function Sidebar() {
         </NavLink>
       ))}
       {role === 'owner' && (
-        <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          {ICON.users}<span>Users & Roles</span>
-        </NavLink>
+        <>
+          <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {ICON.users}<span>Users & Roles</span>
+          </NavLink>
+          <NavLink to="/activity" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {ICON.activity}<span>Activity Log</span>
+          </NavLink>
+        </>
       )}
       <div className="sidebar-footer">
         <div style={{ marginBottom: 6 }}>{profile?.full_name || 'Staff'} — {role ? role.replace('_', ' ') : '…'}</div>

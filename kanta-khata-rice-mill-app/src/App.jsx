@@ -17,6 +17,7 @@ import Expenses from './pages/Expenses';
 import Tax from './pages/Tax';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
+import ActivityLog from './pages/ActivityLog';
 
 export default function App() {
   return (
@@ -48,6 +49,14 @@ export default function App() {
               element={
                 <ProtectedRoute requireRole="owner">
                   <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/activity"
+              element={
+                <ProtectedRoute requireRole="owner">
+                  <ActivityLog />
                 </ProtectedRoute>
               }
             />

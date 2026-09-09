@@ -8,7 +8,7 @@ const TITLES = {
   '/production': 'Production', '/stock': 'Godown / Stock', '/sales': 'Sales & Billing',
   '/payments': 'Payments & Cheques', '/labor': 'Labor & Wages', '/transport': 'Transport / Logistics',
   '/expenses': 'Machinery & Expenses', '/tax': 'Tax & Zakat Compliance', '/reports': 'Reports',
-  '/users': 'Users & Roles',
+  '/users': 'Users & Roles', '/activity': 'Activity Log',
 };
 
 export default function AppLayout() {

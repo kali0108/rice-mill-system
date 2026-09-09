@@ -18,12 +18,18 @@ below takes about 10 minutes.
    database password (save it somewhere — you likely won't need it again for this app).
 2. Once the project is ready, open **SQL Editor** → **New query**.
 3. Open `supabase/schema.sql` from this folder, copy the **entire file**, paste it into the
-   SQL editor, and click **Run**. This creates every table, the four roles, all row-level
-   security policies, and the triggers that auto-post ledger entries from purchases/sales/payments.
+   SQL editor, and click **Run**. This creates every table, the account states (Owner,
+   Munshi, Godown Incharge, Sales Staff, and a permission-less "Pending" state), all
+   row-level security policies, and the triggers that auto-post ledger entries from
+   purchases/sales/payments.
+
+   *(Already ran the original schema.sql on this project before? Don't re-run the file
+   above — use `supabase/migration_02_user_management.sql` instead, following the two-step
+   order written at the top of that file.)*
 4. Go to **Authentication → Providers** and confirm **Email** is enabled (it is by default).
-5. Go to **Authentication → Settings** and turn **off** "Confirm email" — for a small internal
-   mill team this lets staff sign in immediately after creating an account, with no inbox
-   step. (Leave it on if you'd rather staff confirm by email first.)
+5. Go to **Authentication → Settings** and turn **ON** "Confirm email" — this is the
+   confirmation step for every signup, including the very first Owner account: nobody gets
+   in without clicking the link Supabase emails them.
 6. Go to **Project Settings → API**. Copy the **Project URL** and the **anon / public key** —
    you'll need both in the next step.
 
@@ -48,8 +54,7 @@ npm run dev
 ```
 
 Open the printed local URL, sign up with your own email — **the first account to ever sign
-up automatically becomes Owner**. Every account after that defaults to Sales Staff until the
-Owner sets their real role on the **Users & Roles** page.
+up automatically becomes Owner**, after confirming via the email Supabase sends.
 
 ## 3. Deploy to Vercel
 
@@ -76,20 +81,46 @@ works correctly on Vercel's static hosting.
 
 ## 4. Add your staff
 
-Have each staff member open the app and **Sign Up** with their own email — this gives every
-person their own login and keeps the activity log meaningful (every entry is tagged with
-who made it). As Owner, go to **Users & Roles** and set each person's role:
+As Owner, go to **Users & Roles** and use **Invite New Staff**: enter their email, name, and
+role. When that person signs up with that exact email (after confirming it, since email
+confirmation is on), they land directly in the right role — no extra approval step.
+
+If someone signs up **without** being invited, their account is created but sits in
+**Pending Approval** — they can sign in, but see nothing but a waiting screen, and appear
+under "Staff Accounts" with a Pending role so you can approve them (assign a real role) or
+leave them pending. You can also **Edit** any existing account's name, role, or
+Active/Suspended status at any time from the same page — suspending someone instantly revokes
+every permission, enforced in Postgres, not just hidden in the UI.
 
 | Role | Can read | Can write |
 |---|---|---|
-| **Owner** | everything | everything, incl. changing roles |
+| **Owner** | everything | everything, incl. inviting/editing/suspending staff |
 | **Munshi / Accountant** | everything | Purchase, Khata/Ledger, Payments, Labor, Transport, Machinery/Expenses, Tax/Zakat |
 | **Godown Incharge** | everything | Production, Stock, Labor, Transport, Machinery/Expenses |
 | **Sales Staff** | everything | Sales & Billing only |
+| **Pending** | nothing | nothing — waiting screen only |
 
 This is enforced in two places, redundantly: the UI hides forms/buttons a role can't use,
 and — the part that actually matters for security — **Postgres row-level security** rejects
-the write outright even if someone bypasses the UI. The full policy list is in `supabase/schema.sql`.
+the write (and now, the *read*, for Pending/Suspended accounts) outright even if someone
+bypasses the UI. The full policy list is in `supabase/schema.sql`.
+
+### Why invite-by-email instead of the Owner typing someone a password directly
+
+Creating another person's login credentials from the browser would need Supabase's service-role
+key, which must never be shipped to the browser — anyone could read it out of the page and get
+full admin access to your database. The invite system gets the same practical outcome (Owner
+controls who gets in and with what role) without that risk, and without needing a separate
+server component to deploy and secure. If you'd rather have literal "Owner sets the password"
+account creation, that's doable with a small Supabase Edge Function holding the service-role
+key server-side — ask and I'll build it as an add-on.
+
+## Activity Log
+
+Every insert, edit, and delete across all operational modules is recorded automatically (who,
+what, when) and visible to the Owner under **Activity Log**, filterable by module and action
+type. This is populated by a Postgres trigger, not app code, so it can't be bypassed by using
+the API directly.
 
 ## Offline mode
 
@@ -110,7 +141,7 @@ not concurrent edits of one row.
 **Fully implemented:** all 12 operational modules from the original spec, role-based
 multi-user login, Postgres RLS enforcement, auto-posting ledger entries, offline queue +
 sync, CSV export on every register, printable sale invoices, an owner-only user/role manager,
-and a full audit trail (`activity_log` table — who created/edited/deleted what, and when).
+and a full audit trail with its own **Activity Log** page (who created/edited/deleted what, and when).
 
 **Simplified, on purpose:**
 - **Zakat** is a plain calculator (cash + bank + stock + receivables − payables, 2.5% above

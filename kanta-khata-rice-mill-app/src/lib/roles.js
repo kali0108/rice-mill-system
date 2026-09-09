@@ -4,11 +4,16 @@
 
 export const ROLES = ['owner', 'munshi', 'godown_incharge', 'sales_staff'];
 
+// What the Owner can actively assign someone. 'pending' is a state people
+// land in automatically (uninvited signup) — not a role you'd hand-pick.
+export const ASSIGNABLE_ROLES = ROLES;
+
 export const ROLE_LABELS = {
   owner: 'Owner / Admin',
   munshi: 'Munshi / Accountant',
   godown_incharge: 'Godown Incharge',
   sales_staff: 'Sales Staff',
+  pending: 'Pending Approval',
 };
 
 const MONEY = ['owner', 'munshi'];
@@ -34,3 +39,18 @@ export const CAN_WRITE = {
 export function canWrite(role, moduleKey) {
   return (CAN_WRITE[moduleKey] || []).includes(role);
 }
+
+export const MODULE_LABELS = {
+  purchase: 'Paddy Purchase',
+  ledger: 'Khata / Ledger',
+  payments: 'Payments & Cheques',
+  tax: 'Tax & Zakat',
+  production: 'Production',
+  stock: 'Godown / Stock',
+  labor: 'Labor & Wages',
+  transport: 'Transport / Logistics',
+  machinery: 'Machinery Log',
+  expenses: 'Daily Expenses',
+  sales: 'Sales & Billing',
+  users: 'Users & Roles',
+};
