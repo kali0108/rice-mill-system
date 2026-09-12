@@ -9,30 +9,43 @@ import { Panel, Badge, Empty, PendingTag } from '../components/ui';
 const ITEMS = ['Paddy', 'Rice - Full Grain', 'Kanki/Broken', 'Bran/Chokar', 'Husk/Tuti', 'Other'];
 const empty = { godown: '', lot_no: '', item: 'Paddy', bags: '', weight_per_bag_kg: '50', date_in: todayStr(), last_fumigation: '' };
 
+function toForm(s) {
+  return {
+    godown: s.godown, lot_no: s.lot_no, item: s.item, bags: String(s.bags), weight_per_bag_kg: String(s.weight_per_bag_kg),
+    date_in: s.date_in, last_fumigation: s.last_fumigation || '',
+  };
+}
+
 export default function Stock() {
-  const { rows, insert, remove } = useSupaTable('stock_lots', { orderBy: 'date_in' });
-  const { role } = useAuth();
+  const { rows, insert, update, remove } = useSupaTable('stock_lots', { orderBy: 'date_in' });
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'stock');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'stock');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const t = todayStr();
+
+  function startEdit(s) { setEditingId(s.id); setForm(toForm(s)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
 
   async function submit(e) {
     e.preventDefault();
     const totalWeight = Number(form.bags) * Number(form.weight_per_bag_kg);
-    const { error } = await insert({
+    const payload = {
       godown: form.godown.trim(), lot_no: form.lot_no.trim(), item: form.item, bags: Number(form.bags),
       weight_per_bag_kg: Number(form.weight_per_bag_kg), total_weight_kg: totalWeight,
       date_in: form.date_in, last_fumigation: form.last_fumigation || null,
-    });
+    };
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Naya Stock Entry">
+        <Panel title={editingId ? 'Stock Entry Edit Karein' : 'Naya Stock Entry'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Godown</label><input value={form.godown} onChange={set('godown')} required placeholder="e.g. Godown 1" /></div>
@@ -43,7 +56,8 @@ export default function Stock() {
               <div className="field"><label>Date In</label><input type="date" value={form.date_in} onChange={set('date_in')} required /></div>
               <div className="field"><label>Last Fumigation Date (optional)</label><input type="date" value={form.last_fumigation} onChange={set('last_fumigation')} /></div>
             </div>
-            <button type="submit" className="btn primary">Stock Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Stock Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -68,7 +82,7 @@ export default function Stock() {
                     <td>{s.godown} {s._pending && <PendingTag />}</td><td>{s.lot_no}</td><td>{s.item}</td><td>{s.bags}</td>
                     <td>{fmt(c.totalWeight)} kg</td><td>{fmtDate(s.date_in)}</td>
                     <td><Badge kind={ageBadge}>{ageingDays} din</Badge></td><td>{fum}</td>
-                    {writable && <td><button className="btn small danger" onClick={() => remove(s.id)}>Delete</button></td>}
+                    {writable && <td><button className="btn small" onClick={() => startEdit(s)}>Edit</button> <button className="btn small danger" onClick={() => remove(s.id)}>Delete</button></td>}
                   </tr>
                 );
               }) : <Empty colSpan={9} text="Koi stock lot nahi." />}

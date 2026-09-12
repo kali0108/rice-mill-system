@@ -18,6 +18,9 @@ import Tax from './pages/Tax';
 import Reports from './pages/Reports';
 import Users from './pages/Users';
 import ActivityLog from './pages/ActivityLog';
+import Calculator from './pages/Calculator';
+import ImportExport from './pages/ImportExport';
+import Reset from './pages/Reset';
 
 export default function App() {
   return (
@@ -44,6 +47,23 @@ export default function App() {
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/tax" element={<Tax />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/calculator" element={<Calculator />} />
+            <Route
+              path="/import-export"
+              element={
+                <ProtectedRoute requireRole="owner">
+                  <ImportExport />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/reset"
+              element={
+                <ProtectedRoute requireRole="owner">
+                  <Reset />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/users"
               element={

@@ -7,33 +7,46 @@ import { exportCSV } from '../lib/csv';
 import { Panel, Empty, PendingTag } from '../components/ui';
 
 const PARTY_TYPES = ['Kisan', 'Arhti', 'Customer', 'Supplier', 'Labor', 'Bank'];
-const empty = { date: todayStr(), party_type: 'Kisan', party_name: '', direction: 'Paid', method: 'Cash', amount: '', cheque_no: '', due_date: '' };
+const empty = { date: todayStr(), party_type: 'Kisan', party_name: '', direction: 'Paid', method: 'Cash', amount: '', cheque_no: '', due_date: '', status: 'Cleared' };
+
+function toForm(p) {
+  return {
+    date: p.date, party_type: p.party_type, party_name: p.party_name, direction: p.direction, method: p.method,
+    amount: String(p.amount), cheque_no: p.cheque_no || '', due_date: p.due_date || '', status: p.status,
+  };
+}
 
 export default function Payments() {
   const { rows, insert, remove, update } = useSupaTable('payments');
-  const { role } = useAuth();
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'payments');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'payments');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const t = todayStr();
   const cheques = rows.filter((p) => p.method === 'Cheque').sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
 
+  function startEdit(p) { setEditingId(p.id); setForm(toForm(p)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
+
   async function submit(e) {
     e.preventDefault();
-    const { error } = await insert({
+    const payload = {
       date: form.date, party_type: form.party_type, party_name: form.party_name.trim(), direction: form.direction,
       method: form.method, amount: Number(form.amount), cheque_no: form.cheque_no || '',
       due_date: form.method === 'Cheque' ? (form.due_date || form.date) : form.date,
-      status: form.method === 'Cheque' ? 'Pending' : 'Cleared',
-    });
+      status: editingId ? form.status : (form.method === 'Cheque' ? 'Pending' : 'Cleared'),
+    };
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Nayi Payment / Receipt">
+        <Panel title={editingId ? 'Payment Entry Edit Karein' : 'Nayi Payment / Receipt'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Date</label><input type="date" value={form.date} onChange={set('date')} required /></div>
@@ -52,8 +65,14 @@ export default function Payments() {
                 <div className="field"><label>Cheque Number</label><input value={form.cheque_no} onChange={set('cheque_no')} /></div>
                 <div className="field"><label>Cheque Due Date</label><input type="date" value={form.due_date} onChange={set('due_date')} /></div>
               </>}
+              {editingId && form.method === 'Cheque' && (
+                <div className="field"><label>Status</label>
+                  <select value={form.status} onChange={set('status')}><option value="Pending">Pending</option><option value="Cleared">Cleared</option><option value="Bounced">Bounced</option></select>
+                </div>
+              )}
             </div>
-            <button type="submit" className="btn primary">Entry Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Entry Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -90,7 +109,7 @@ export default function Payments() {
               {rows.length ? rows.map((p) => (
                 <tr key={p.id}>
                   <td>{fmtDate(p.date)}</td><td>{p.party_type}</td><td>{p.party_name}</td><td>{p.direction}</td><td>{p.method}</td><td>{rs(p.amount)}</td>
-                  {writable && <td><button className="btn small danger" onClick={() => remove(p.id)}>Delete</button></td>}
+                  {writable && <td><button className="btn small" onClick={() => startEdit(p)}>Edit</button> <button className="btn small danger" onClick={() => remove(p.id)}>Delete</button></td>}
                 </tr>
               )) : <Empty colSpan={7} text="Koi payment entry nahi." />}
             </tbody>

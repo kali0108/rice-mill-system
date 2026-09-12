@@ -36,15 +36,23 @@ export const CAN_WRITE = {
   users: ['owner'],
 };
 
-export function canWrite(role, moduleKey) {
-  return (CAN_WRITE[moduleKey] || []).includes(role);
+// Real enforcement always happens in Postgres (has_permission() + RLS in
+// schema.sql) — this file only controls what the UI shows/hides, mirroring
+// the same role-default + per-user-override logic.
+export function canWrite(profile, moduleKey) {
+  if (!profile || profile.status !== 'active') return false;
+  if (profile.role === 'owner') return true;
+  const overrides = profile.permissions || {};
+  if (Object.prototype.hasOwnProperty.call(overrides, moduleKey)) return !!overrides[moduleKey];
+  return (CAN_WRITE[moduleKey] || []).includes(profile.role);
 }
 
 export const MODULE_LABELS = {
   purchase: 'Paddy Purchase',
   ledger: 'Khata / Ledger',
   payments: 'Payments & Cheques',
-  tax: 'Tax & Zakat',
+  tax: 'Tax Records',
+  zakat: 'Zakat Assessment',
   production: 'Production',
   stock: 'Godown / Stock',
   labor: 'Labor & Wages',
@@ -54,3 +62,7 @@ export const MODULE_LABELS = {
   sales: 'Sales & Billing',
   users: 'Users & Roles',
 };
+
+// Modules the Owner can grant/deny per-user (everything except Users & Roles
+// itself, which always stays Owner-only — no override, no delegation).
+export const PERMISSION_MODULES = Object.keys(MODULE_LABELS).filter((m) => m !== 'users');

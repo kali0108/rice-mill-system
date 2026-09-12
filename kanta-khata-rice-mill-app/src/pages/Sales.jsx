@@ -9,6 +9,13 @@ import { Panel, Empty, PendingTag } from '../components/ui';
 const ITEMS = ['Rice - Full Grain', 'Kanki/Broken', 'Bran/Chokar', 'Husk/Tuti', 'Other'];
 const empty = { date: todayStr(), customer: '', type: 'Local', item: 'Rice - Full Grain', qty_kg: '', rate: '', tax_pct: '0', container_no: '', shipment_date: '' };
 
+function toForm(s) {
+  return {
+    date: s.date, customer: s.customer, type: s.type, item: s.item, qty_kg: String(s.qty_kg), rate: String(s.rate),
+    tax_pct: String(s.tax_pct ?? 0), container_no: s.container_no || '', shipment_date: s.shipment_date || '',
+  };
+}
+
 function printInvoice(s) {
   const c = saleCalc(s);
   const win = window.open('', '_blank', 'width=700,height=800');
@@ -37,31 +44,37 @@ function printInvoice(s) {
 }
 
 export default function Sales() {
-  const { rows, insert, remove } = useSupaTable('sales');
-  const { role } = useAuth();
+  const { rows, insert, update, remove } = useSupaTable('sales');
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'sales');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'sales');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function startEdit(s) { setEditingId(s.id); setForm(toForm(s)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
 
   async function submit(e) {
     e.preventDefault();
     const amount = Number(form.qty_kg) * Number(form.rate);
     const taxAmount = (amount * Number(form.tax_pct || 0)) / 100;
     const netAmount = amount + taxAmount;
-    const { error } = await insert({
+    const payload = {
       date: form.date, customer: form.customer.trim(), type: form.type, item: form.item,
       qty_kg: Number(form.qty_kg), rate: Number(form.rate), tax_pct: Number(form.tax_pct) || 0,
       amount, tax_amount: taxAmount, net_amount: netAmount,
       container_no: form.container_no || '', shipment_date: form.shipment_date || null,
-    });
+    };
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Nayi Sale / Bill">
+        <Panel title={editingId ? 'Sale / Bill Edit Karein' : 'Nayi Sale / Bill'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Date</label><input type="date" value={form.date} onChange={set('date')} required /></div>
@@ -78,7 +91,8 @@ export default function Sales() {
                 <div className="field"><label>Shipment Date</label><input type="date" value={form.shipment_date} onChange={set('shipment_date')} /></div>
               </>}
             </div>
-            <button type="submit" className="btn primary">Bill Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Bill Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -97,7 +111,8 @@ export default function Sales() {
                     <td><b>{rs(c.netAmount)}</b></td>
                     <td>
                       <button className="btn small" onClick={() => printInvoice(s)}>Print</button>{' '}
-                      {writable && <button className="btn small danger" onClick={() => remove(s.id)}>Delete</button>}
+                      {writable && <><button className="btn small" onClick={() => startEdit(s)}>Edit</button>{' '}
+                      <button className="btn small danger" onClick={() => remove(s.id)}>Delete</button></>}
                     </td>
                   </tr>
                 );

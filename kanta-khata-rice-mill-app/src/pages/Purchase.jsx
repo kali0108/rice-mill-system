@@ -9,34 +9,49 @@ import { Panel, Empty, PendingTag } from '../components/ui';
 const VARIETIES = ['Basmati 1121', 'Super Basmati', 'PK-386', 'Irri-6', 'Other'];
 const empty = { date: todayStr(), mode: 'Direct', farmer_name: '', arhti_name: '', variety: 'Super Basmati', bags: '', gross_wt: '', tare_wt: '', moisture_pct: '', broken_pct: '', fm_pct: '', rate_per_maund: '', advance_applied: '0' };
 
+function toForm(p) {
+  return {
+    date: p.date, mode: p.mode, farmer_name: p.farmer_name, arhti_name: p.arhti_name || '', variety: p.variety,
+    bags: String(p.bags), gross_wt: String(p.gross_wt), tare_wt: String(p.tare_wt), moisture_pct: String(p.moisture_pct ?? ''),
+    broken_pct: String(p.broken_pct ?? ''), fm_pct: String(p.fm_pct ?? ''), rate_per_maund: String(p.rate_per_maund),
+    advance_applied: String(p.advance_applied ?? 0),
+  };
+}
+
 export default function Purchase() {
-  const { rows, insert, remove } = useSupaTable('purchases');
-  const { role } = useAuth();
+  const { rows, insert, update, remove } = useSupaTable('purchases');
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'purchase');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'purchase');
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function startEdit(p) { setEditingId(p.id); setForm(toForm(p)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
 
   async function submit(e) {
     e.preventDefault();
     const netWt = Number(form.gross_wt) - Number(form.tare_wt);
     const amount = (netWt / 40) * Number(form.rate_per_maund);
     const netPayable = amount - Number(form.advance_applied || 0);
-    const { error } = await insert({
+    const payload = {
       date: form.date, mode: form.mode, farmer_name: form.farmer_name.trim(), arhti_name: form.arhti_name.trim(),
       variety: form.variety, bags: Number(form.bags), gross_wt: Number(form.gross_wt), tare_wt: Number(form.tare_wt),
       net_wt: netWt, moisture_pct: Number(form.moisture_pct) || 0, broken_pct: Number(form.broken_pct) || 0,
       fm_pct: Number(form.fm_pct) || 0, rate_per_maund: Number(form.rate_per_maund), amount,
       advance_applied: Number(form.advance_applied) || 0, net_payable: netPayable,
-    });
+    };
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Nayi Kharid Entry">
+        <Panel title={editingId ? 'Kharid Entry Edit Karein' : 'Nayi Kharid Entry'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Date</label><input type="date" value={form.date} onChange={set('date')} required /></div>
@@ -60,7 +75,8 @@ export default function Purchase() {
               <div className="field"><label>Rate (Rs per 40kg maund)</label><input type="number" min="0" value={form.rate_per_maund} onChange={set('rate_per_maund')} required /></div>
               <div className="field"><label>Pichla Advance Adjust (Rs)</label><input type="number" min="0" value={form.advance_applied} onChange={set('advance_applied')} /></div>
             </div>
-            <button type="submit" className="btn primary">Purchase Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Purchase Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -78,7 +94,7 @@ export default function Purchase() {
                     <td>{p.mode}{p.arhti_name ? ' — ' + p.arhti_name : ''}</td><td>{p.variety}</td><td>{p.bags}</td>
                     <td>{fmt(c.netWt)}</td><td>{p.moisture_pct || 0}%</td><td>{rs(p.rate_per_maund)}</td>
                     <td>{rs(c.amount)}</td><td>{rs(p.advance_applied)}</td><td><b>{rs(c.netPayable)}</b></td>
-                    {writable && <td><button className="btn small danger" onClick={() => remove(p.id)}>Delete</button></td>}
+                    {writable && <td><button className="btn small" onClick={() => startEdit(p)}>Edit</button> <button className="btn small danger" onClick={() => remove(p.id)}>Delete</button></td>}
                   </tr>
                 );
               }) : <Empty colSpan={12} text="Abhi koi purchase entry nahi." />}

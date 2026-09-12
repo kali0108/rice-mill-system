@@ -8,31 +8,42 @@ import { Panel, StatCard, Empty, PendingTag } from '../components/ui';
 
 const empty = { name: '', date: todayStr(), pay_type: 'Daily', rate_or_wage: '', units_or_days: '', advance_deducted: '0' };
 
+function toForm(l) {
+  return { name: l.name, date: l.date, pay_type: l.pay_type, rate_or_wage: String(l.rate_or_wage), units_or_days: String(l.units_or_days), advance_deducted: String(l.advance_deducted ?? 0) };
+}
+
 export default function Labor() {
   const { rows, insert, remove, update } = useSupaTable('labor_entries');
-  const { role } = useAuth();
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'labor');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'labor');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const totalPending = rows.filter((l) => !l.paid).reduce((s, l) => s + laborCalc(l).net, 0);
+
+  function startEdit(l) { setEditingId(l.id); setForm(toForm(l)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
 
   async function submit(e) {
     e.preventDefault();
     const gross = Number(form.rate_or_wage) * Number(form.units_or_days);
     const net = gross - Number(form.advance_deducted || 0);
-    const { error } = await insert({
+    const payload = {
       name: form.name.trim(), date: form.date, pay_type: form.pay_type, rate_or_wage: Number(form.rate_or_wage),
       units_or_days: Number(form.units_or_days), advance_deducted: Number(form.advance_deducted) || 0,
-      gross, net_pay: net, paid: false,
-    });
+      gross, net_pay: net,
+    };
+    if (!editingId) payload.paid = false;
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Nayi Labor Entry">
+        <Panel title={editingId ? 'Labor Entry Edit Karein' : 'Nayi Labor Entry'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Worker Name</label><input value={form.name} onChange={set('name')} required /></div>
@@ -44,7 +55,8 @@ export default function Labor() {
               <div className="field"><label>{form.pay_type === 'Piece' ? 'Bags Done' : 'Days Worked'}</label><input type="number" step="0.1" min="0" value={form.units_or_days} onChange={set('units_or_days')} required /></div>
               <div className="field"><label>Advance Deducted (Rs)</label><input type="number" min="0" value={form.advance_deducted} onChange={set('advance_deducted')} /></div>
             </div>
-            <button type="submit" className="btn primary">Entry Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Entry Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -66,7 +78,7 @@ export default function Labor() {
                     <td>{rs(l.rate_or_wage)}</td><td>{l.units_or_days}</td><td>{rs(c.gross)}</td><td>{rs(l.advance_deducted)}</td>
                     <td><b>{rs(c.net)}</b></td>
                     <td><label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}><input type="checkbox" checked={l.paid} disabled={!writable} onChange={(e) => update(l.id, { paid: e.target.checked })} /> Paid</label></td>
-                    {writable && <td><button className="btn small danger" onClick={() => remove(l.id)}>Delete</button></td>}
+                    {writable && <td><button className="btn small" onClick={() => startEdit(l)}>Edit</button> <button className="btn small danger" onClick={() => remove(l.id)}>Delete</button></td>}
                   </tr>
                 );
               }) : <Empty colSpan={10} text="Koi labor entry nahi." />}

@@ -8,7 +8,8 @@ const TITLES = {
   '/production': 'Production', '/stock': 'Godown / Stock', '/sales': 'Sales & Billing',
   '/payments': 'Payments & Cheques', '/labor': 'Labor & Wages', '/transport': 'Transport / Logistics',
   '/expenses': 'Machinery & Expenses', '/tax': 'Tax & Zakat Compliance', '/reports': 'Reports',
-  '/users': 'Users & Roles', '/activity': 'Activity Log',
+  '/users': 'Users & Roles', '/activity': 'Activity Log', '/calculator': 'Calculator',
+  '/import-export': 'Import / Export', '/reset': 'Reset Data',
 };
 
 export default function AppLayout() {

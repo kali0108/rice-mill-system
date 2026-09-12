@@ -80,15 +80,31 @@ export function useSupaTable(table, { orderBy = 'date', ascending = false } = {}
   }
 
   async function update(id, changes) {
-    setRows((r) => r.map((x) => (x.id === id ? { ...x, ...changes } : x)));
+    let previous;
+    setRows((r) => r.map((x) => {
+      if (x.id === id) { previous = x; return { ...x, ...changes }; }
+      return x;
+    }));
+    if (String(id).startsWith('local_')) {
+      // Still an offline-created row that hasn't synced yet — the optimistic
+      // change above is all there is to do; it'll go up whenever the insert syncs.
+      return { error: null };
+    }
     if (navigator.onLine) {
       try {
-        await supabase.from(table).update(changes).eq('id', id);
-        return;
-      } catch (networkErr) { /* fall through to queue */ }
+        const { error } = await supabase.from(table).update(changes).eq('id', id);
+        if (!error) return { error: null };
+        // Server responded and rejected it (RLS denial, validation, etc.) — a
+        // real error, not a connectivity problem. Revert the optimistic change.
+        if (previous) setRows((r) => r.map((x) => (x.id === id ? previous : x)));
+        return { error };
+      } catch (networkErr) {
+        // fetch() itself threw — connectivity blip. Fall through to queueing.
+      }
     }
     await queueAction(table, 'update', { id, changes });
     setPendingCount((c) => c + 1);
+    return { error: null, queued: true };
   }
 
   return { rows, loading, insert, update, remove, refresh, pendingCount };

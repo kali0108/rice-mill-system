@@ -17,6 +17,9 @@ const ICON = {
   reports: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17V8M9 17V3M15 17v-6"/><path d="M2.5 17h15"/></svg>,
   users: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="6.5" r="2.6"/><path d="M2 16c.5-3.3 2.2-5 5-5s4.5 1.7 5 5"/><circle cx="15" cy="7.5" r="2"/><path d="M13 11.2c2 .2 3.3 1.7 3.7 4.8"/></svg>,
   activity: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 10.5h3l1.8-5 3.4 9 1.8-5.5h3.2l1.8 2.5"/></svg>,
+  calculator: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="12" height="16" rx="1.6"/><path d="M6.3 5.3h7.4"/><circle cx="7" cy="9.2" r=".2"/><circle cx="10" cy="9.2" r=".2"/><circle cx="13" cy="9.2" r=".2"/><circle cx="7" cy="12.2" r=".2"/><circle cx="10" cy="12.2" r=".2"/><circle cx="13" cy="12.2" r=".2"/><circle cx="7" cy="15.2" r=".2"/><circle cx="10" cy="15.2" r=".2"/><circle cx="13" cy="15.2" r=".2"/></svg>,
+  importExport: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8.5 6 2.5M6 2.5 3.5 5M6 2.5 8.5 5"/><path d="M14 11.5v6M14 17.5l-2.5-2.5M14 17.5l2.5-2.5"/><path d="M2.5 10.5v6h6M17.5 9.5v-6h-6"/></svg>,
+  reset: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v5l3.5-2.5"/><path d="M4.2 6A7 7 0 1 0 10 3"/><path d="M10 17.5V17M10 8.5v4"/></svg>,
 };
 
 const NAV = [
@@ -32,6 +35,7 @@ const NAV = [
   { to: '/expenses', label: 'Machinery & Expenses', icon: 'expenses' },
   { to: '/tax', label: 'Tax & Zakat', icon: 'tax' },
   { to: '/reports', label: 'Reports', icon: 'reports' },
+  { to: '/calculator', label: 'Calculator', icon: 'calculator' },
 ];
 
 export default function Sidebar() {
@@ -54,6 +58,12 @@ export default function Sidebar() {
           </NavLink>
           <NavLink to="/activity" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
             {ICON.activity}<span>Activity Log</span>
+          </NavLink>
+          <NavLink to="/import-export" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+            {ICON.importExport}<span>Import / Export</span>
+          </NavLink>
+          <NavLink to="/reset" className={({ isActive }) => `nav-item nav-item-danger ${isActive ? 'active' : ''}`}>
+            {ICON.reset}<span>Reset Data</span>
           </NavLink>
         </>
       )}

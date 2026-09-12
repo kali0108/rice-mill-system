@@ -5,9 +5,9 @@ import { supabase } from '../lib/supabaseClient';
 
 export default function Login() {
   const { session, signIn, signUp } = useAuth();
-  const [mode, setMode] = useState('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -22,20 +22,61 @@ export default function Login() {
 
   if (session) return <Navigate to="/dashboard" replace />;
 
-  async function handleSubmit(e) {
+  // Sign Up is ONLY for creating the very first Owner account. Once an Owner
+  // exists, every other account is created by the Owner from the Users page
+  // (with a password the Owner sets), not through this form.
+  const showSignup = ownerExists === false;
+
+  async function handleSignIn(e) {
     e.preventDefault();
     setError(''); setNotice(''); setBusy(true);
-    const result = mode === 'signin' ? await signIn(email, password) : await signUp(email, password, fullName);
+    const result = await signIn(email, password);
+    setBusy(false);
+    if (result.error) setError(result.error.message);
+  }
+
+  async function handleOwnerSignup(e) {
+    e.preventDefault();
+    setError(''); setNotice('');
+    if (password !== confirmPassword) { setError('Password aur Confirm Password match nahi kar rahe.'); return; }
+    setBusy(true);
+    const result = await signUp(email, password, fullName);
     setBusy(false);
     if (result.error) { setError(result.error.message); return; }
-    if (mode === 'signup') {
-      if (result.data?.session) {
-        // Email confirmation is off on this project — signed in immediately.
-      } else {
-        setNotice('Account ban gaya hai. Confirmation email bheja gaya hai — apna inbox check karein, link par click karein, phir Sign In karein.');
-        setMode('signin');
-      }
+    if (!result.data?.session) {
+      setNotice('Owner account ban gaya hai. Confirmation email bheja gaya hai — apna inbox check karein, link par click karein, phir Sign In karein.');
     }
+  }
+
+  if (ownerExists === null) {
+    return <div className="boot-loading">Loading…</div>;
+  }
+
+  if (showSignup) {
+    return (
+      <div className="auth-wrap">
+        <div className="auth-card">
+          <div className="mark">Kanta Khata</div>
+          <div className="sub">Rice Mill Manager</div>
+          {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
+          {notice && <div className="auth-ok" style={{ marginBottom: 12 }}>{notice}</div>}
+
+          <div className="calcline" style={{ marginBottom: 14 }}>
+            Yeh mill ka <b>pehla account</b> hai — is se secure <b>Owner</b> account banega jise poori app ki access hogi.
+            Baki sab staff accounts (Munshi, Godown Incharge, Sales Staff) sirf Owner hi baad mein "Users &amp; Roles" page se banayega —
+            koi aur khud sign up nahi kar sakta.
+          </div>
+
+          <form onSubmit={handleOwnerSignup}>
+            <div className="field"><label>Full Name</label><input value={fullName} onChange={(e) => setFullName(e.target.value)} required /></div>
+            <div className="field"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+            <div className="field"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} /></div>
+            <div className="field"><label>Confirm Password</label><input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={8} /></div>
+            <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : 'Create Owner Account'}</button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -44,46 +85,13 @@ export default function Login() {
         <div className="mark">Kanta Khata</div>
         <div className="sub">Rice Mill Manager</div>
         {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
-        {notice && <div className="auth-ok" style={{ marginBottom: 12 }}>{notice}</div>}
 
-        {mode === 'signup' && ownerExists === false && (
-          <div className="calcline" style={{ marginBottom: 14 }}>
-            Yeh mill ka <b>pehla account</b> hai — is se <b>Owner</b> account banega jise poori app ki access hogi.
-          </div>
-        )}
-        {mode === 'signup' && ownerExists === true && (
-          <div className="calcline" style={{ marginBottom: 14 }}>
-            Agar Owner ne aapko invite kiya hai to sign up karte hi aapka sahi role mil jayega.
-            Warna account "Pending Approval" mein rahega jab tak Owner aapko approve na kare.
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          {mode === 'signup' && (
-            <div className="field">
-              <label>Full Name</label>
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-            </div>
-          )}
-          <div className="field">
-            <label>Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </div>
-          <div className="field">
-            <label>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
-          </div>
-          <button className="btn primary" type="submit" disabled={busy}>
-            {busy ? 'Please wait…' : mode === 'signin' ? 'Sign In' : 'Create Account'}
-          </button>
+        <form onSubmit={handleSignIn}>
+          <div className="field"><label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <div className="field"><label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+          <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Please wait…' : 'Sign In'}</button>
         </form>
-        <div className="switch">
-          {mode === 'signin' ? (
-            <>Naya staff account chahiye? <a onClick={() => setMode('signup')}>Sign Up</a></>
-          ) : (
-            <>Pehle se account hai? <a onClick={() => setMode('signin')}>Sign In</a></>
-          )}
-        </div>
+        <div className="switch">Naya account chahiye? Apne Owner/Admin se rabta karein — wo aapke liye account bana denge.</div>
       </div>
     </div>
   );

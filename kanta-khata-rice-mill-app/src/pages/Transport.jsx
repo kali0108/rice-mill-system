@@ -2,39 +2,55 @@ import { useState } from 'react';
 import { useSupaTable } from '../hooks/useSupaTable';
 import { useAuth } from '../context/AuthContext';
 import { canWrite } from '../lib/roles';
-import { transportCalc, fmt, rs, fmtDate, todayStr } from '../lib/calc';
+import { fmt, rs, fmtDate, todayStr } from '../lib/calc';
 import { exportCSV } from '../lib/csv';
 import { Panel, Empty, PendingTag } from '../components/ui';
 
 const TYPES = ['Loading', 'Unloading', 'Delivery', 'Arhti Commission'];
 const empty = { date: todayStr(), entry_type: 'Delivery', vehicle_no: '', driver_name: '', from_location: '', to_location: '', item: '', qty_kg: '0', freight_rate_per_kg: '0', commission_base_amount: '0', commission_pct: '0', notes: '' };
 
+function toForm(t) {
+  return {
+    date: t.date, entry_type: t.entry_type, vehicle_no: t.vehicle_no || '', driver_name: t.driver_name || '',
+    from_location: t.from_location || '', to_location: t.to_location || '', item: t.item || '',
+    qty_kg: String(t.qty_kg ?? 0), freight_rate_per_kg: String(t.freight_rate_per_kg ?? 0),
+    commission_base_amount: String(t.commission_base_amount ?? 0), commission_pct: String(t.commission_pct ?? 0),
+    notes: t.notes || '',
+  };
+}
+
 export default function Transport() {
-  const { rows, insert, remove } = useSupaTable('transport_entries');
-  const { role } = useAuth();
+  const { rows, insert, update, remove } = useSupaTable('transport_entries');
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'transport');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'transport');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function startEdit(t) { setEditingId(t.id); setForm(toForm(t)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
 
   async function submit(e) {
     e.preventDefault();
     const freightAmount = Number(form.qty_kg || 0) * Number(form.freight_rate_per_kg || 0);
     const commissionAmount = (Number(form.commission_base_amount || 0) * Number(form.commission_pct || 0)) / 100;
-    const { error } = await insert({
+    const payload = {
       date: form.date, entry_type: form.entry_type, vehicle_no: form.vehicle_no, driver_name: form.driver_name,
       from_location: form.from_location, to_location: form.to_location, item: form.item,
       qty_kg: Number(form.qty_kg) || 0, freight_rate_per_kg: Number(form.freight_rate_per_kg) || 0, freight_amount: freightAmount,
       commission_base_amount: Number(form.commission_base_amount) || 0, commission_pct: Number(form.commission_pct) || 0,
       commission_amount: commissionAmount, notes: form.notes,
-    });
+    };
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Nayi Transport Entry">
+        <Panel title={editingId ? 'Transport Entry Edit Karein' : 'Nayi Transport Entry'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Date</label><input type="date" value={form.date} onChange={set('date')} required /></div>
@@ -50,7 +66,8 @@ export default function Transport() {
               <div className="field"><label>Arhti Commission %</label><input type="number" step="0.1" min="0" value={form.commission_pct} onChange={set('commission_pct')} /></div>
               <div className="field"><label>Notes</label><input value={form.notes} onChange={set('notes')} /></div>
             </div>
-            <button type="submit" className="btn primary">Entry Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Entry Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -65,7 +82,7 @@ export default function Transport() {
                   <td>{fmtDate(t.date)} {t._pending && <PendingTag />}</td><td>{t.entry_type}</td><td>{t.vehicle_no || '—'}</td>
                   <td>{t.from_location || '—'} → {t.to_location || '—'}</td><td>{t.item || '—'}</td><td>{fmt(t.qty_kg)} kg</td>
                   <td>{rs(t.freight_amount)}</td><td>{t.commission_amount ? rs(t.commission_amount) : '—'}</td>
-                  {writable && <td><button className="btn small danger" onClick={() => remove(t.id)}>Delete</button></td>}
+                  {writable && <td><button className="btn small" onClick={() => startEdit(t)}>Edit</button> <button className="btn small danger" onClick={() => remove(t.id)}>Delete</button></td>}
                 </tr>
               )) : <Empty colSpan={9} text="Koi transport entry nahi." />}
             </tbody>

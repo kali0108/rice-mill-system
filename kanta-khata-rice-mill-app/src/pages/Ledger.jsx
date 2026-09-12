@@ -9,6 +9,10 @@ import { Panel, Badge, Empty, PendingTag } from '../components/ui';
 const PARTY_TYPES = ['Kisan', 'Arhti', 'Customer', 'Supplier', 'Labor', 'Bank'];
 const empty = { date: todayStr(), party_type: 'Kisan', party_name: '', description: '', debit: '0', credit: '0' };
 
+function toForm(e) {
+  return { date: e.date, party_type: e.party_type, party_name: e.party_name, description: e.description || '', debit: String(e.debit ?? 0), credit: String(e.credit ?? 0) };
+}
+
 function partyBalances(ledger) {
   const map = {};
   ledger.forEach((e) => {
@@ -21,28 +25,34 @@ function partyBalances(ledger) {
 }
 
 export default function Ledger() {
-  const { rows, insert, remove } = useSupaTable('ledger_entries');
-  const { role } = useAuth();
+  const { rows, insert, update, remove } = useSupaTable('ledger_entries');
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'ledger');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'ledger');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const balances = partyBalances(rows).sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
 
+  function startEdit(e) { setEditingId(e.id); setForm(toForm(e)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
+
   async function submit(e) {
     e.preventDefault();
-    const { error } = await insert({
+    const payload = {
       date: form.date, party_type: form.party_type, party_name: form.party_name.trim(),
       description: form.description.trim() || 'Manual entry', debit: Number(form.debit) || 0, credit: Number(form.credit) || 0,
-      source: 'manual',
-    });
+    };
+    if (!editingId) payload.source = 'manual';
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Manual Khata Entry">
+        <Panel title={editingId ? 'Khata Entry Edit Karein' : 'Manual Khata Entry'}>
           <div className="calcline">
             <b>Credit</b> = Mill ka is party par udhaar badhta hai (jaise naya purchase). &nbsp;
             <b>Debit</b> = Mill ne paisay diye ya party se wasooli hui (jaise advance ya payment). &nbsp;
@@ -57,7 +67,8 @@ export default function Ledger() {
               <div className="field"><label>Debit (Rs)</label><input type="number" min="0" value={form.debit} onChange={set('debit')} /></div>
               <div className="field"><label>Credit (Rs)</label><input type="number" min="0" value={form.credit} onChange={set('credit')} /></div>
             </div>
-            <button type="submit" className="btn primary">Entry Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Entry Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -80,6 +91,9 @@ export default function Ledger() {
       </Panel>
 
       <Panel title="All Khata Entries" action={<button className="btn small" onClick={() => exportCSV('ledger.csv', ['Date','PartyType','Party','Description','Debit','Credit','Source'], rows.map((e) => [e.date, e.party_type, e.party_name, e.description, e.debit, e.credit, e.source]))}>Export CSV</button>}>
+        <div className="note" style={{ marginBottom: 10 }}>
+          "Auto" entries yahan bhi edit ho sakti hain, lekin agar unki asal Purchase/Sale/Payment entry dobara save hui to wahan ki value yahan wapas aa jayegi — behtar hai wahan se edit karein.
+        </div>
         <div className="tablewrap">
           <table className="data">
             <thead><tr><th>Date</th><th>Party Type</th><th>Party</th><th>Description</th><th>Debit</th><th>Credit</th><th>Source</th>{writable && <th></th>}</tr></thead>
@@ -88,7 +102,7 @@ export default function Ledger() {
                 <tr key={e.id}>
                   <td>{fmtDate(e.date)} {e._pending && <PendingTag />}</td><td>{e.party_type}</td><td>{e.party_name}</td><td>{e.description}</td>
                   <td>{e.debit ? rs(e.debit) : '—'}</td><td>{e.credit ? rs(e.credit) : '—'}</td><td>{e.source}</td>
-                  {writable && <td><button className="btn small danger" onClick={() => remove(e.id)}>Delete</button></td>}
+                  {writable && <td><button className="btn small" onClick={() => startEdit(e)}>Edit</button> <button className="btn small danger" onClick={() => remove(e.id)}>Delete</button></td>}
                 </tr>
               )) : <Empty colSpan={8} text="Koi entry nahi." />}
             </tbody>

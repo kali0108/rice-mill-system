@@ -8,32 +8,46 @@ import { Panel, Empty, PendingTag } from '../components/ui';
 
 const empty = { date: todayStr(), lot_no: '', process: 'Raw', paddy_input_kg: '', rice_output_kg: '', kanki25: '0', kanki50: '0', kanki100: '0', bran_kg: '0', husk_kg: '0', wastage_kg: '0' };
 
+function toForm(b) {
+  return {
+    date: b.date, lot_no: b.lot_no, process: b.process, paddy_input_kg: String(b.paddy_input_kg), rice_output_kg: String(b.rice_output_kg),
+    kanki25: String(b.kanki25 ?? 0), kanki50: String(b.kanki50 ?? 0), kanki100: String(b.kanki100 ?? 0),
+    bran_kg: String(b.bran_kg ?? 0), husk_kg: String(b.husk_kg ?? 0), wastage_kg: String(b.wastage_kg ?? 0),
+  };
+}
+
 export default function Production() {
-  const { rows, insert, remove } = useSupaTable('production_batches');
-  const { role } = useAuth();
+  const { rows, insert, update, remove } = useSupaTable('production_batches');
+  const { profile } = useAuth();
   const [form, setForm] = useState(empty);
-  const writable = canWrite(role, 'production');
+  const [editingId, setEditingId] = useState(null);
+  const writable = canWrite(profile, 'production');
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  function startEdit(b) { setEditingId(b.id); setForm(toForm(b)); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  function cancelEdit() { setEditingId(null); setForm(empty); }
 
   async function submit(e) {
     e.preventDefault();
     const paddyInputKg = Number(form.paddy_input_kg);
     const totalRice = Number(form.rice_output_kg) + Number(form.kanki25 || 0) + Number(form.kanki50 || 0) + Number(form.kanki100 || 0);
     const recoveryPct = paddyInputKg ? (totalRice / paddyInputKg) * 100 : 0;
-    const { error } = await insert({
+    const payload = {
       date: form.date, lot_no: form.lot_no.trim(), process: form.process, paddy_input_kg: paddyInputKg,
       rice_output_kg: Number(form.rice_output_kg), kanki25: Number(form.kanki25) || 0, kanki50: Number(form.kanki50) || 0,
       kanki100: Number(form.kanki100) || 0, bran_kg: Number(form.bran_kg) || 0, husk_kg: Number(form.husk_kg) || 0,
       wastage_kg: Number(form.wastage_kg) || 0, recovery_pct: recoveryPct,
-    });
+    };
+    const { error } = editingId ? await update(editingId, payload) : await insert(payload);
     if (error) { alert('Save nahi hua: ' + error.message); return; }
+    setEditingId(null);
     setForm(empty);
   }
 
   return (
     <>
       {writable && (
-        <Panel title="Naya Production Batch">
+        <Panel title={editingId ? 'Production Batch Edit Karein' : 'Naya Production Batch'}>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="field"><label>Date</label><input type="date" value={form.date} onChange={set('date')} required /></div>
@@ -53,7 +67,8 @@ export default function Production() {
               <div className="field"><label>Tuti/Husk (kg)</label><input type="number" step="0.1" min="0" value={form.husk_kg} onChange={set('husk_kg')} /></div>
               <div className="field"><label>Wastage/Loss (kg)</label><input type="number" step="0.1" min="0" value={form.wastage_kg} onChange={set('wastage_kg')} /></div>
             </div>
-            <button type="submit" className="btn primary">Batch Save Karein</button>
+            <button type="submit" className="btn primary">{editingId ? 'Update Karein' : 'Batch Save Karein'}</button>{' '}
+            {editingId && <button type="button" className="btn" onClick={cancelEdit}>Cancel</button>}
           </form>
         </Panel>
       )}
@@ -72,7 +87,7 @@ export default function Production() {
                     <td>{fmt(b.kanki25)}/{fmt(b.kanki50)}/{fmt(b.kanki100)}</td>
                     <td>{fmt(b.bran_kg)} kg</td><td>{fmt(b.husk_kg)} kg</td><td>{fmt(b.wastage_kg)} kg</td>
                     <td><b>{c.recoveryPct.toFixed(1)}%</b></td>
-                    {writable && <td><button className="btn small danger" onClick={() => remove(b.id)}>Delete</button></td>}
+                    {writable && <td><button className="btn small" onClick={() => startEdit(b)}>Edit</button> <button className="btn small danger" onClick={() => remove(b.id)}>Delete</button></td>}
                   </tr>
                 );
               }) : <Empty colSpan={11} text="Koi production batch nahi." />}
