@@ -7,8 +7,13 @@ logins (Owner, Munshi, Godown Incharge, Sales Staff) backed by Supabase (Postgre
 deployable on Vercel.
 
 This app is **deploy-ready** but not yet deployed — you'll need your own free Supabase and
-Vercel accounts (I can't create accounts or click deploy on your behalf). The whole process
-below takes about 10 minutes.
+Vercel accounts (I can't create accounts or click deploy on your behalf).
+
+**→ If you're deploying for the first time, or updating a site that's already live, use
+[`DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md) instead of this file — it's a straight,
+linear walkthrough for both cases, plus a troubleshooting section for the errors people
+actually hit (Edge Function not reachable, session/login confusion, etc).** The rest of this
+README is feature documentation — what each part does and why — rather than a setup checklist.
 
 ---
 
@@ -26,7 +31,8 @@ below takes about 10 minutes.
    *(Already ran an earlier version of schema.sql on this project? Don't re-run the file
    above — run whichever of these you're missing, in order: `migration_02_user_management.sql`
    → `migration_03_granular_permissions.sql` → `migration_04_admin_managed_users.sql` →
-   `migration_05_ledger_edit_sync.sql`. If you're not sure which you've already run, they're
+   `migration_05_ledger_edit_sync.sql` → `migration_06_realtime.sql`. If you're not sure which
+   you've already run, they're
    all safe to run again — everything in them uses "if exists"/"or replace".)*
 4. Go to **Authentication → Providers** and confirm **Email** is enabled (it is by default).
 5. Go to **Authentication → Settings** and make sure "Confirm email" is **OFF** — the Owner
@@ -39,19 +45,14 @@ below takes about 10 minutes.
 The Owner creates every other staff account directly (email + password they choose), which
 needs Supabase's service-role key — something that must never sit in the browser. So that one
 operation runs as a small **Edge Function** on Supabase's own servers instead of in the app.
-This is the one piece that isn't "just paste and click" — it needs the Supabase CLI, once:
 
-```bash
-npm install -g supabase
-supabase login
-supabase link --project-ref YOUR-PROJECT-REF   # find this in your project's Settings -> General
-supabase functions deploy admin-create-user
-```
-
-That's it — no secrets to copy or paste; `SUPABASE_SERVICE_ROLE_KEY` is injected automatically
-for every Edge Function by Supabase. Until this is deployed, the "Create New Staff Account"
-and "Reset Password" actions on the Users page will fail; everything else in the app works
-without it.
+**→ Full step-by-step for this (including a no-CLI, straight-from-the-Supabase-website method)
+is in [`DEPLOYMENT_GUIDE.md`](./DEPLOYMENT_GUIDE.md), Part A4.** Short version: create a
+function named exactly `admin-create-user` in Supabase's Edge Functions dashboard tab, paste
+in `supabase/functions/admin-create-user/index.ts`, deploy. No secrets to type in anywhere.
+Until this is deployed, "Create New Staff Account" and "Reset Password" on the Users page will
+fail with "Failed to send a request to the Edge Function" — everything else in the app works
+fine without it.
 
 ## 3. Configure the app
 
@@ -224,7 +225,8 @@ not concurrent edits of one row.
 ## What's included vs. simplified
 
 **Fully implemented:** all 12 operational modules from the original spec — each with full
-Add/**Edit**/Delete, not just add-and-delete — role-based multi-user login with Owner-created
+Add/**Edit**/Delete, not just add-and-delete — **Realtime updates** (another user's entry or
+edit appears instantly, no refresh needed), role-based multi-user login with Owner-created
 staff accounts and per-user Allow/Deny permission overrides on top of role defaults, Postgres
 RLS enforcement, auto-posting (and auto-syncing on edit) ledger entries, offline queue + sync,
 CSV export on every register, printable sale invoices, an owner-only user/permission manager

@@ -517,12 +517,26 @@ create index on stock_lots (godown);
 create index on activity_log (created_at desc);
 create index on activity_log (table_name);
 
+-- ---------- Realtime ---------------------------------------------------
+-- Without this, every module page falls back to polling instead of getting
+-- instant cross-user updates — one Owner editing a purchase wouldn't show up
+-- for a Munshi looking at the same page until their next periodic refresh.
+do $$
+declare t text;
+begin
+  foreach t in array array['purchases','ledger_entries','production_batches','stock_lots','sales',
+                            'payments','labor_entries','transport_entries','machinery_log','expenses',
+                            'tax_records','zakat_assessments','activity_log','profiles']
+  loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table %I', t);
+    end if;
+  end loop;
+end $$;
+
 -- ============================================================================
 -- Done with SQL. Two more things:
 -- 1. Authentication -> Settings -> "Confirm email" should be OFF.
--- 2. Deploy the Edge Function so the Owner can create staff accounts:
---      supabase login
---      supabase link --project-ref YOUR-PROJECT-REF
---      supabase functions deploy admin-create-user
---    (Full walkthrough in the README.)
+-- 2. Deploy the Edge Function so the Owner can create staff accounts — see
+--    the README for two ways to do this (Dashboard, no CLI needed; or CLI).
 -- ============================================================================

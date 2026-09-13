@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { cacheTable, getCachedTable, queueAction, syncOutbox } from '../lib/offline';
 
@@ -6,14 +6,29 @@ import { cacheTable, getCachedTable, queueAction, syncOutbox } from '../lib/offl
 // - Online: reads/writes go straight to Supabase (Postgres RLS decides what's allowed).
 // - Offline: writes are queued locally and applied optimistically to `rows`;
 //   reads fall back to the last-synced cache.
-// - Coming back online triggers a queue replay, then a fresh refresh().
+// - A Realtime subscription pushes other users' inserts/edits/deletes into
+//   `rows` the moment they happen — no polling, no manual refresh needed.
+// - Coming back online (or a long-idle fallback poll, purely as a safety net
+//   in case a websocket event was missed) triggers a *silent* resync — the
+//   `loading` flag only ever flips true on the very first load, so this never
+//   flashes/blanks the page.
 export function useSupaTable(table, { orderBy = 'date', ascending = false } = {}) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const loadedOnce = useRef(false);
+
+  const sortRows = useCallback((arr) => {
+    return [...arr].sort((a, b) => {
+      const av = a[orderBy], bv = b[orderBy];
+      if (av === bv) return 0;
+      const cmp = av > bv ? 1 : -1;
+      return ascending ? cmp : -cmp;
+    });
+  }, [orderBy, ascending]);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!loadedOnce.current) setLoading(true);
     if (navigator.onLine) {
       const { data, error } = await supabase.from(table).select('*').order(orderBy, { ascending });
       if (!error && data) {
@@ -25,19 +40,41 @@ export function useSupaTable(table, { orderBy = 'date', ascending = false } = {}
     } else {
       setRows(await getCachedTable(table));
     }
+    loadedOnce.current = true;
     setLoading(false);
   }, [table, orderBy, ascending]);
 
   useEffect(() => {
+    loadedOnce.current = false;
     refresh();
-    const onOnline = async () => {
-      await syncOutbox(supabase);
-      await refresh();
-    };
+
+    // Realtime: any insert/update/delete this user is allowed to see (same
+    // RLS as normal reads) arrives here instantly, from any device/session.
+    const channel = supabase
+      .channel(`${table}-rt-${Math.random().toString(36).slice(2, 9)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table }, (payload) => {
+        setRows((r) => (r.some((x) => x.id === payload.new.id) ? r : sortRows([payload.new, ...r])));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table }, (payload) => {
+        setRows((r) => sortRows(r.map((x) => (x.id === payload.new.id ? payload.new : x))));
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table }, (payload) => {
+        setRows((r) => r.filter((x) => x.id !== payload.old.id));
+      })
+      .subscribe();
+
+    // Safety net only — Realtime handles the normal case. This just protects
+    // against a missed event after e.g. a laptop was asleep. Always silent.
+    const onOnline = async () => { await syncOutbox(supabase); await refresh(); };
     window.addEventListener('online', onOnline);
-    const interval = setInterval(onOnline, 20000); // gentle retry even without an 'online' event
-    return () => { window.removeEventListener('online', onOnline); clearInterval(interval); };
-  }, [refresh]);
+    const interval = setInterval(onOnline, 60000);
+
+    return () => {
+      window.removeEventListener('online', onOnline);
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [refresh, table, sortRows]);
 
   async function insert(payload) {
     const tempId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -48,7 +85,7 @@ export function useSupaTable(table, { orderBy = 'date', ascending = false } = {}
       try {
         const { data, error } = await supabase.from(table).insert(payload).select().single();
         if (!error && data) {
-          setRows((r) => r.map((x) => (x.id === tempId ? data : x)));
+          setRows((r) => sortRows(r.map((x) => (x.id === tempId ? data : x))));
           return { data, error: null };
         }
         // Server responded and rejected it (RLS denial, validation, etc.) — a
@@ -81,10 +118,10 @@ export function useSupaTable(table, { orderBy = 'date', ascending = false } = {}
 
   async function update(id, changes) {
     let previous;
-    setRows((r) => r.map((x) => {
+    setRows((r) => sortRows(r.map((x) => {
       if (x.id === id) { previous = x; return { ...x, ...changes }; }
       return x;
-    }));
+    })));
     if (String(id).startsWith('local_')) {
       // Still an offline-created row that hasn't synced yet — the optimistic
       // change above is all there is to do; it'll go up whenever the insert syncs.
@@ -96,7 +133,7 @@ export function useSupaTable(table, { orderBy = 'date', ascending = false } = {}
         if (!error) return { error: null };
         // Server responded and rejected it (RLS denial, validation, etc.) — a
         // real error, not a connectivity problem. Revert the optimistic change.
-        if (previous) setRows((r) => r.map((x) => (x.id === id ? previous : x)));
+        if (previous) setRows((r) => sortRows(r.map((x) => (x.id === id ? previous : x))));
         return { error };
       } catch (networkErr) {
         // fetch() itself threw — connectivity blip. Fall through to queueing.

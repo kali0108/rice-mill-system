@@ -59,7 +59,14 @@ export default function Users() {
   async function callAdminFn(body) {
     const { data, error } = await supabase.functions.invoke('admin-create-user', { body });
     if (error) {
-      // Edge Function returned a non-2xx — try to pull the real message out.
+      // "Failed to send a request to the Edge Function" is a network-level
+      // failure — supabase-js never got any response at all. In practice
+      // this almost always means the function isn't deployed yet (or the
+      // name doesn't match exactly). A real rejection from deployed function
+      // code comes back as a normal JSON {error: "..."} body instead, caught below.
+      if (/failed to send a request/i.test(error.message || '')) {
+        return { error: 'Edge Function tak pahunch nahi ho saki. Ho sakta hai "admin-create-user" abhi deploy nahi hui — README ke "Deploy the admin-create-user function" section follow karein (Dashboard se, CLI zaroori nahi).' };
+      }
       const msg = (await error.context?.json?.().catch(() => null))?.error || error.message;
       return { error: msg };
     }
