@@ -43,8 +43,8 @@ export default function Sidebar() {
   return (
     <div className="sidebar">
       <div className="brand">
-        <div className="mark">Kanta Khata</div>
-        <div className="sub">Rice Mill Manager</div>
+        <div className="mark">Jatala Rice Mills</div>
+        <div className="sub">Rice Mill Digital Sys</div>
       </div>
       {NAV.map((n) => (
         <NavLink key={n.to} to={n.to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
