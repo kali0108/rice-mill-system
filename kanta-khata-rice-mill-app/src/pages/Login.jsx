@@ -56,8 +56,8 @@ export default function Login() {
     return (
       <div className="auth-wrap">
         <div className="auth-card">
-          <div className="mark">Kanta Khata</div>
-          <div className="sub">Rice Mill Manager</div>
+          <div className="mark">Jatala Rice Mills</div>
+          <div className="sub">Rice Mill Digital SYS</div>
           {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
           {notice && <div className="auth-ok" style={{ marginBottom: 12 }}>{notice}</div>}
 
@@ -82,8 +82,8 @@ export default function Login() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div className="mark">Kanta Khata</div>
-        <div className="sub">Rice Mill Manager</div>
+        <div className="mark">Jatala Rice Mills</div>
+        <div className="sub">Rice Mill Digital SYS</div>
         {error && <div className="auth-error" style={{ marginBottom: 12 }}>{error}</div>}
 
         <form onSubmit={handleSignIn}>
