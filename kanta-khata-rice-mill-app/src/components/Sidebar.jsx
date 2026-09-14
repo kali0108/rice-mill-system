@@ -45,6 +45,7 @@ export default function Sidebar() {
       <div className="brand">
         <div className="mark">Jatala Rice Mills</div>
         <div className="sub">Rice Mill Digital System</div>
+        <div className="sub">Powered By: IQTech Solutions</div>
       </div>
       {NAV.map((n) => (
         <NavLink key={n.to} to={n.to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
