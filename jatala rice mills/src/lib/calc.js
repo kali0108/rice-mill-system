@@ -1,3 +1,4 @@
+import { T } from './i18n.js';
 // Same formulas as the database triggers in supabase/schema.sql. The browser
 // uses them for the live preview while typing; the database recalculates on
 // save and is always the final authority.
@@ -178,9 +179,9 @@ export function pct(n, digits = 1) {
 // "+ = Mill ne dena hai", "- = Party ne dena hai" (balance = credit - debit)
 export function balanceSide(balance) {
   const b = r2(balance);
-  if (b > 0) return { kind: 'pos', short: 'Mill ne dena', long: 'Mill ne party ko dena hai (Jama)' };
-  if (b < 0) return { kind: 'neg', short: 'Party ne dena', long: 'Party ne mill ko dena hai (Banam)' };
-  return { kind: 'zero', short: 'Barabar', long: 'Hisaab barabar (settled)' };
+  if (b > 0) return { kind: 'pos', short: T('Mill ne dena'), long: T('Mill ne party ko dena hai (Jama)') };
+  if (b < 0) return { kind: 'neg', short: T('Party ne dena'), long: T('Party ne mill ko dena hai (Banam)') };
+  return { kind: 'zero', short: T('Barabar'), long: T('Hisaab barabar (settled)') };
 }
 
 export function sum(rows, fn) {

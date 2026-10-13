@@ -5,6 +5,7 @@ import { emitLocalChange } from '../lib/realtime';
 import { fmtDateTime } from '../lib/dates';
 import { TABLES } from '../lib/schema';
 import { useToast } from '../context/ToastContext';
+import { T } from '../lib/i18n';
 
 const ACTION_LABEL = { insert: 'Nayi entry', update: 'Tabdeeli', delete: 'Delete' };
 
@@ -34,8 +35,8 @@ export default function OfflineBanner() {
     res.tables.forEach((t) => emitLocalChange(t));
     if (res.synced) emitLocalChange('*');
     if (manual || res.synced || res.failed) {
-      if (res.synced) toast.success(`${res.synced} entries server par sync ho gayin.`);
-      if (res.failed) toast.error(`${res.failed} entries server ne qabool nahi kin — tafseel banner mein dekhein.`);
+      if (res.synced) toast.success(`${res.synced}${T(" entries server par sync ho gayin.")}`);
+      if (res.failed) toast.error(`${res.failed}${T(" entries server ne qabool nahi kin — tafseel banner mein dekhein.")}`);
     }
     refreshCounts();
   }, [toast, refreshCounts]);
@@ -68,21 +69,21 @@ export default function OfflineBanner() {
       <div className="ob-row">
         <span>
           {!online
-            ? `Aap offline hain — entries is device par save ho rahi hain, internet aate hi khud sync ho jayengi.${pending ? ` (${pending} baqi)` : ''}`
+            ? `${T("Aap offline hain — entries is device par save ho rahi hain, internet aate hi khud sync ho jayengi.")}${pending ? ` (${pending}${T(" baqi)")}` : ''}`
             : pending
-              ? `${pending} entries sync honi baqi hain…`
+              ? `${pending}${T(" entries sync honi baqi hain…")}`
               : ''}
-          {failed.length ? ` ${failed.length} entries server ne qabool nahi kin.` : ''}
+          {failed.length ? ` ${failed.length}${T(" entries server ne qabool nahi kin.")}` : ''}
         </span>
         <span className="ob-actions">
           {online && pending > 0 && (
             <button type="button" className="btn small" disabled={syncing} onClick={() => runSync(true)}>
-              {syncing ? 'Sync ho raha hai…' : 'Abhi Sync Karein'}
+              {syncing ? T("Sync ho raha hai…") : T("Abhi Sync Karein")}
             </button>
           )}
           {failed.length > 0 && (
             <button type="button" className="btn small" onClick={() => setShowFailed((s) => !s)}>
-              {showFailed ? 'Chupayein' : 'Tafseel'}
+              {showFailed ? T("Chupayein") : T("Tafseel")}
             </button>
           )}
         </span>
@@ -96,19 +97,17 @@ export default function OfflineBanner() {
                 <div className="muted">{a.error} · {fmtDateTime(new Date(a.failedAt || Date.now()).toISOString())}</div>
               </div>
               <div className="row-actions">
-                <button type="button" className="btn small" onClick={async () => { await retryFailed(a.id); runSync(true); }}>Dobara bhejein</button>
+                <button type="button" className="btn small" onClick={async () => { await retryFailed(a.id); runSync(true); }}>{T("Dobara bhejein")}</button>
                 <button
                   type="button"
                   className="btn small danger"
                   onClick={async () => {
-                    if (window.confirm('Yeh entry hamesha ke liye hata dein?')) {
+                    if (window.confirm(T("Yeh entry hamesha ke liye hata dein?"))) {
                       await discardFailed(a.id);
                       emitLocalChange(a.table);
                     }
                   }}
-                >
-                  Hata dein
-                </button>
+                >{T("Hata dein")}</button>
               </div>
             </div>
           ))}

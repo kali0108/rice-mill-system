@@ -1,6 +1,7 @@
 // Small dependency-free charts (SVG) — work offline, print well, and scroll
 // sideways on a phone when there are many points.
 import { parseYmd } from '../lib/dates';
+import { T } from '../lib/i18n';
 
 export const PALETTE = ['#2F5D7C', '#C9962F', '#4C7A3D', '#B23B2E', '#8B6544', '#6B5B95', '#1F2E1A'];
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -70,7 +71,7 @@ export function BarChart({ labels, series, height = 230, format = fmtShort }) {
   const plotH = height - pad.top - pad.bottom;
   const barW = Math.max(4, (groupW - 8) / series.length);
   const xOf = (i) => pad.left + i * groupW + groupW / 2;
-  if (!n) return <div className="empty">Is muddat mein data nahi.</div>;
+  if (!n) return <div className="empty">{T("Is muddat mein data nahi.")}</div>;
   return (
     <div className="chart">
       <Legend series={series} />
@@ -101,7 +102,7 @@ export function LineChart({ labels, series, height = 230, format = fmtShort, min
   const stepX = n > 1 ? Math.max(18, Math.min(60, 700 / (n - 1))) : 40;
   const width = Math.max(320, pad.left + pad.right + (n - 1) * stepX);
   const vals = series.flatMap((s) => s.values.filter((v) => v != null && Number.isFinite(Number(v))).map(Number));
-  if (!n || !vals.length) return <div className="empty">Is muddat mein data nahi.</div>;
+  if (!n || !vals.length) return <div className="empty">{T("Is muddat mein data nahi.")}</div>;
   const vMin = Math.min(...vals);
   const vMax = Math.max(...vals);
   let lo = 0;

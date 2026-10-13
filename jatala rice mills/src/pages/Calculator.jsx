@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { purchaseCalc, productionCalc, saleCalc, transportCalc, taxCalc, zakatCalc, deductionKg, fmt, fmtNum, rs, pct, num } from '../lib/calc';
 import { Panel, Field, NumInput } from '../components/ui';
+import { T } from '../lib/i18n';
 
 function clean(n) {
   if (!Number.isFinite(n)) return 'Error';
@@ -98,84 +99,84 @@ export default function Calculator() {
 
   return (
     <>
-      <Panel title="Calculator"><BasicCalculator /></Panel>
+      <Panel title={T("Calculator")}><BasicCalculator /></Panel>
 
-      <Panel title="Maund ⇄ KG aur Rate converter (1 maund = 40 kg)">
+      <Panel title={T("Maund ⇄ KG aur Rate converter (1 maund = 40 kg)")}>
         <div className="form-grid">
-          <Q label="Maund" value={m.maund} onChange={setM('maund')} />
-          <Field label="= KG"><input readOnly value={m.maund ? fmtNum(num(m.maund) * 40) : ''} placeholder="—" /></Field>
-          <Q label="KG" value={m.kg} onChange={setM('kg')} />
-          <Field label="= Maund"><input readOnly value={m.kg ? fmt(num(m.kg) / 40, 3) : ''} placeholder="—" /></Field>
-          <Q label="Rate fi maund (Rs)" value={m.rateMaund} onChange={setM('rateMaund')} />
-          <Field label="= Rate fi kg"><input readOnly value={m.rateMaund ? fmt(num(m.rateMaund) / 40, 2) : ''} placeholder="—" /></Field>
-          <Q label="Rate fi kg (Rs)" value={m.rateKg} onChange={setM('rateKg')} />
-          <Field label="= Rate fi maund"><input readOnly value={m.rateKg ? fmt(num(m.rateKg) * 40, 2) : ''} placeholder="—" /></Field>
+          <Q label={T("Maund")} value={m.maund} onChange={setM('maund')} />
+          <Field label={T("= KG")}><input readOnly value={m.maund ? fmtNum(num(m.maund) * 40) : ''} placeholder="—" /></Field>
+          <Q label={T("KG")} value={m.kg} onChange={setM('kg')} />
+          <Field label={T("= Maund")}><input readOnly value={m.kg ? fmt(num(m.kg) / 40, 3) : ''} placeholder="—" /></Field>
+          <Q label={T("Rate fi maund (Rs)")} value={m.rateMaund} onChange={setM('rateMaund')} />
+          <Field label={T("= Rate fi kg")}><input readOnly value={m.rateMaund ? fmt(num(m.rateMaund) / 40, 2) : ''} placeholder="—" /></Field>
+          <Q label={T("Rate fi kg (Rs)")} value={m.rateKg} onChange={setM('rateKg')} />
+          <Field label={T("= Rate fi maund")}><input readOnly value={m.rateKg ? fmt(num(m.rateKg) * 40, 2) : ''} placeholder="—" /></Field>
         </div>
       </Panel>
 
-      <Panel title="Paddy kharid ka hisaab">
+      <Panel title={T("Paddy kharid ka hisaab")}>
         <div className="form-grid">
-          <Q label="Gross (kg)" value={p.gross_wt} onChange={setP('gross_wt')} />
-          <Q label="Tare (kg)" value={p.tare_wt} onChange={setP('tare_wt')} />
-          <Q label="Bags" value={p.bags} onChange={setP('bags')} />
-          <Q label="Bardana katoti fi bag (kg)" value={p.bag_wt_kg} onChange={setP('bag_wt_kg')} />
-          <Q label="Namee katoti (kg fi maund)" value={p.katoti} onChange={setP('katoti')} />
-          <Q label="Rate (Rs fi maund)" value={p.rate_per_maund} onChange={setP('rate_per_maund')} />
-          <Q label="Commission %" value={p.commission_pct} onChange={setP('commission_pct')} />
-          <Q label="Mazdoori katoti (Rs)" value={p.labor_charges} onChange={setP('labor_charges')} />
-          <Q label="Mauqa par adaigi (Rs)" value={p.advance_applied} onChange={setP('advance_applied')} />
+          <Q label={T("Gross (kg)")} value={p.gross_wt} onChange={setP('gross_wt')} />
+          <Q label={T("Tare (kg)")} value={p.tare_wt} onChange={setP('tare_wt')} />
+          <Q label={T("Bags")} value={p.bags} onChange={setP('bags')} />
+          <Q label={T("Bardana katoti fi bag (kg)")} value={p.bag_wt_kg} onChange={setP('bag_wt_kg')} />
+          <Q label={T("Namee katoti (kg fi maund)")} value={p.katoti} onChange={setP('katoti')} />
+          <Q label={T("Rate (Rs fi maund)")} value={p.rate_per_maund} onChange={setP('rate_per_maund')} />
+          <Q label={T("Commission %")} value={p.commission_pct} onChange={setP('commission_pct')} />
+          <Q label={T("Mazdoori katoti (Rs)")} value={p.labor_charges} onChange={setP('labor_charges')} />
+          <Q label={T("Mauqa par adaigi (Rs)")} value={p.advance_applied} onChange={setP('advance_applied')} />
         </div>
-        <div className="calcline">Net: <b>{fmtNum(pc.netWt)} kg ({fmt(pc.maunds, 2)} md)</b> · Raqam: <b>{rs(pc.amount)}</b> · Commission: {rs(pc.commission)} · Kul: <b>{rs(pc.total)}</b> · Baqaya: <b>{rs(pc.netPayable)}</b></div>
+        <div className="calcline">{T("Net: ")}<b>{fmtNum(pc.netWt)}{T(" kg (")}{fmt(pc.maunds, 2)}{T(" md)")}</b>{T(" · Raqam: ")}<b>{rs(pc.amount)}</b>{T(" · Commission: ")}{rs(pc.commission)}{T(" · Kul: ")}<b>{rs(pc.total)}</b>{T(" · Baqaya: ")}<b>{rs(pc.netPayable)}</b></div>
       </Panel>
 
-      <Panel title="Recovery %">
+      <Panel title={T("Recovery %")}>
         <div className="form-grid">
-          <Q label="Paddy (kg)" value={r.paddy_input_kg} onChange={setR('paddy_input_kg')} />
-          <Q label="Full grain (kg)" value={r.rice_output_kg} onChange={setR('rice_output_kg')} />
-          <Q label="Kanki 25% (kg)" value={r.kanki25} onChange={setR('kanki25')} />
-          <Q label="Kanki 50% (kg)" value={r.kanki50} onChange={setR('kanki50')} />
-          <Q label="Kanki 100% (kg)" value={r.kanki100} onChange={setR('kanki100')} />
+          <Q label={T("Paddy (kg)")} value={r.paddy_input_kg} onChange={setR('paddy_input_kg')} />
+          <Q label={T("Full grain (kg)")} value={r.rice_output_kg} onChange={setR('rice_output_kg')} />
+          <Q label={T("Kanki 25% (kg)")} value={r.kanki25} onChange={setR('kanki25')} />
+          <Q label={T("Kanki 50% (kg)")} value={r.kanki50} onChange={setR('kanki50')} />
+          <Q label={T("Kanki 100% (kg)")} value={r.kanki100} onChange={setR('kanki100')} />
         </div>
-        <div className="calcline">Kul chawal: <b>{fmtNum(rc.totalRice)} kg</b> · Recovery: <b>{pct(rc.recoveryPct)}</b> · Head rice: <b>{pct(rc.fullGrainPct)}</b></div>
+        <div className="calcline">{T("Kul chawal: ")}<b>{fmtNum(rc.totalRice)}{T(" kg")}</b>{T(" · Recovery: ")}<b>{pct(rc.recoveryPct)}</b>{T(" · Head rice: ")}<b>{pct(rc.fullGrainPct)}</b></div>
       </Panel>
 
-      <Panel title="Sale (rate fi maund)">
+      <Panel title={T("Sale (rate fi maund)")}>
         <div className="form-grid">
-          <Q label="Wazan (kg)" value={s.qty_kg} onChange={setS('qty_kg')} />
-          <Q label="Rate (Rs fi maund)" value={s.rate} onChange={setS('rate')} />
-          <Q label="Tax %" value={s.tax_pct} onChange={setS('tax_pct')} />
+          <Q label={T("Wazan (kg)")} value={s.qty_kg} onChange={setS('qty_kg')} />
+          <Q label={T("Rate (Rs fi maund)")} value={s.rate} onChange={setS('rate')} />
+          <Q label={T("Tax %")} value={s.tax_pct} onChange={setS('tax_pct')} />
         </div>
-        <div className="calcline">{fmt(sm.maunds, 2)} maund · Raqam: <b>{rs(sm.amount)}</b> · Tax: {rs(sm.taxAmount)} · Kul: <b>{rs(sm.netAmount)}</b></div>
+        <div className="calcline">{fmt(sm.maunds, 2)}{T(" maund · Raqam: ")}<b>{rs(sm.amount)}</b>{T(" · Tax: ")}{rs(sm.taxAmount)}{T(" · Kul: ")}<b>{rs(sm.netAmount)}</b></div>
       </Panel>
 
-      <Panel title="Kiraya & Commission">
+      <Panel title={T("Kiraya & Commission")}>
         <div className="form-grid">
-          <Q label="Wazan (kg)" value={t.qty_kg} onChange={setT('qty_kg')} />
-          <Q label="Kiraya (Rs/kg)" value={t.freight_rate_per_kg} onChange={setT('freight_rate_per_kg')} />
-          <Q label="Commission base (Rs)" value={t.commission_base_amount} onChange={setT('commission_base_amount')} />
-          <Q label="Commission %" value={t.commission_pct} onChange={setT('commission_pct')} />
+          <Q label={T("Wazan (kg)")} value={t.qty_kg} onChange={setT('qty_kg')} />
+          <Q label={T("Kiraya (Rs/kg)")} value={t.freight_rate_per_kg} onChange={setT('freight_rate_per_kg')} />
+          <Q label={T("Commission base (Rs)")} value={t.commission_base_amount} onChange={setT('commission_base_amount')} />
+          <Q label={T("Commission %")} value={t.commission_pct} onChange={setT('commission_pct')} />
         </div>
-        <div className="calcline">Kiraya: <b>{rs(tc.freightAmount)}</b> · Commission: <b>{rs(tc.commissionAmount)}</b> · Kul: <b>{rs(tc.total)}</b></div>
+        <div className="calcline">{T("Kiraya: ")}<b>{rs(tc.freightAmount)}</b>{T(" · Commission: ")}<b>{rs(tc.commissionAmount)}</b>{T(" · Kul: ")}<b>{rs(tc.total)}</b></div>
       </Panel>
 
-      <Panel title="Tax">
+      <Panel title={T("Tax")}>
         <div className="form-grid">
-          <Q label="Taxable raqam (Rs)" value={x.taxable_amount} onChange={setX('taxable_amount')} />
-          <Q label="Tax %" value={x.tax_pct} onChange={setX('tax_pct')} />
+          <Q label={T("Taxable raqam (Rs)")} value={x.taxable_amount} onChange={setX('taxable_amount')} />
+          <Q label={T("Tax %")} value={x.tax_pct} onChange={setX('tax_pct')} />
         </div>
-        <div className="calcline">Tax: <b>{rs(xc.taxAmount)}</b> · Kul: <b>{rs(num(x.taxable_amount) + xc.taxAmount)}</b></div>
+        <div className="calcline">{T("Tax: ")}<b>{rs(xc.taxAmount)}</b>{T(" · Kul: ")}<b>{rs(num(x.taxable_amount) + xc.taxAmount)}</b></div>
       </Panel>
 
-      <Panel title="Zakat — jaldi andaza">
+      <Panel title={T("Zakat — jaldi andaza")}>
         <div className="form-grid">
-          <Q label="Cash" value={z.cash_in_hand} onChange={setZ('cash_in_hand')} />
-          <Q label="Bank" value={z.bank_balance} onChange={setZ('bank_balance')} />
-          <Q label="Stock ki qeemat" value={z.stock_value} onChange={setZ('stock_value')} />
-          <Q label="Lene wali raqam" value={z.receivables} onChange={setZ('receivables')} />
-          <Q label="Dene wali raqam" value={z.payables} onChange={setZ('payables')} />
-          <Q label="Nisab" value={z.nisab_threshold} onChange={setZ('nisab_threshold')} />
+          <Q label={T("Cash")} value={z.cash_in_hand} onChange={setZ('cash_in_hand')} />
+          <Q label={T("Bank")} value={z.bank_balance} onChange={setZ('bank_balance')} />
+          <Q label={T("Stock ki qeemat")} value={z.stock_value} onChange={setZ('stock_value')} />
+          <Q label={T("Lene wali raqam")} value={z.receivables} onChange={setZ('receivables')} />
+          <Q label={T("Dene wali raqam")} value={z.payables} onChange={setZ('payables')} />
+          <Q label={T("Nisab")} value={z.nisab_threshold} onChange={setZ('nisab_threshold')} />
         </div>
-        <div className="calcline">Zakatable: <b>{rs(zc.zakatable)}</b> · Zakat (2.5%): <b>{rs(zc.due)}</b></div>
+        <div className="calcline">{T("Zakatable: ")}<b>{rs(zc.zakatable)}</b>{T(" · Zakat (2.5%): ")}<b>{rs(zc.due)}</b></div>
       </Panel>
     </>
   );

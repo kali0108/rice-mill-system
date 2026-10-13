@@ -1,5 +1,5 @@
 -- ============================================================================
--- Kanta Khata — migration for projects that already ran the ORIGINAL schema.sql.
+-- Jatala Rice Mills — migration for projects that already ran the ORIGINAL schema.sql.
 -- (If you're setting up a brand-new Supabase project, ignore this file and
 -- just run supabase/schema.sql instead — it already includes everything below.)
 --

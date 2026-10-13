@@ -1,5 +1,5 @@
 -- ============================================================================
--- Kanta Khata — migration_07: v4 -> v5 upgrade (EXISTING projects)
+-- Jatala Rice Mills — migration_07: v4 -> v5 upgrade (EXISTING projects)
 --
 -- Kab chalayein: aap ka project pehle se live hai aur aap ne v4 schema.sql
 -- (ya migration_02 ... migration_06) chalaya hua hai. Aap ka saara data
@@ -27,6 +27,10 @@ begin;
 -- ============================================================================
 -- PART 1 — TABLE CHANGES (upgrade from v4). Every statement is idempotent.
 -- ============================================================================
+
+-- v5.4: Manager role (role comparisons in functions use ::text, so the new
+-- value is safe to add inside this same transaction)
+alter type user_role add value if not exists 'manager' after 'owner';
 
 -- New columns (appended, same order as a fresh v5 install)
 alter table purchases add column if not exists slip_no text not null default '';
@@ -301,6 +305,9 @@ create table if not exists bag_movements (
   created_at timestamptz not null default now()
 );
 
+
+-- v5.4: brand
+alter table settings alter column mill_name set default 'Jatala Rice Mills';
 -- ============================================================================
 -- PART 2 — LOGIC: helpers, security, auto-calculations, auto-khata posting,
 -- reports, RLS, grants, realtime. Everything here is idempotent (create or
@@ -399,7 +406,14 @@ $$;
 
 create or replace function is_approved() returns boolean
 language sql stable security definer set search_path = public as $$
-  select coalesce((select role in ('owner','munshi','godown_incharge','sales_staff')
+  select coalesce((select role::text in ('owner','manager','munshi','godown_incharge','sales_staff')
+                   from profiles where id = auth.uid() and status = 'active'), false);
+$$;
+
+-- Owner or Manager: may manage staff accounts and their permissions
+create or replace function is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select role::text in ('owner','manager')
                    from profiles where id = auth.uid() and status = 'active'), false);
 $$;
 
@@ -407,27 +421,54 @@ $$;
 create or replace function role_default_permission(r user_role, module text) returns boolean
 language sql immutable set search_path = public as $$
   select case
-    when r is null or r = 'pending' then false
-    when r = 'owner' then true
-    when module in ('purchase','ledger','payments','cashbook','tax','zakat','products') then r = 'munshi'
-    when module in ('production','stock','labor','transport','machinery','expenses','weighbridge') then r in ('munshi','godown_incharge')
-    when module in ('sales','parties') then r in ('munshi','sales_staff')
+    when r is null or r::text = 'pending' then false
+    when r::text in ('owner', 'manager') then true
+    when module in ('purchase','ledger','payments','cashbook','tax','zakat','products') then r::text = 'munshi'
+    when module in ('production','stock','labor','transport','machinery','expenses','weighbridge') then r::text in ('munshi','godown_incharge')
+    when module in ('sales','parties') then r::text in ('munshi','sales_staff')
     else false
   end;
 $$;
 
-create or replace function has_permission(module text) returns boolean
+-- Role defaults per action. Every approved role may VIEW every module unless
+-- the Owner/Manager switches it off for that user.
+create or replace function role_default_can(r user_role, module text, action text) returns boolean
+language sql immutable set search_path = public as $$
+  select case
+    when r is null or r::text = 'pending' then false
+    when r::text in ('owner', 'manager') then true
+    when action = 'view' then true
+    else role_default_permission(r, module)
+  end;
+$$;
+
+-- Can the signed-in user do ACTION (view | add | edit | delete) in MODULE?
+-- profiles.permissions = { module: { view, add, edit, delete } } (only the
+-- overridden actions are stored); old style { module: true/false } = all
+-- write actions on/off.
+create or replace function can_do(module text, action text default 'add') returns boolean
 language plpgsql stable security definer set search_path = public as $$
-declare prof record;
+declare prof record; v jsonb;
 begin
   select role, status, permissions into prof from profiles where id = auth.uid();
-  if not found or prof.status <> 'active' or prof.role = 'pending' then return false; end if;
-  if prof.role = 'owner' then return true; end if;
-  if prof.permissions ? module then
-    return coalesce((prof.permissions ->> module)::boolean, false);
+  if not found or prof.status <> 'active' or prof.role::text = 'pending' then return false; end if;
+  if prof.role::text = 'owner' then return true; end if;
+  v := prof.permissions -> module;
+  if v is not null and jsonb_typeof(v) = 'boolean' then
+    if action = 'view' then return role_default_can(prof.role, module, 'view') or v = 'true'::jsonb; end if;
+    return v = 'true'::jsonb;
   end if;
-  return role_default_permission(prof.role, module);
+  if v is not null and jsonb_typeof(v) = 'object' and jsonb_typeof(v -> action) = 'boolean' then
+    return (v ->> action)::boolean;
+  end if;
+  return role_default_can(prof.role, module, action);
 end; $$;
+
+-- Kept for older code: "may change data in this module"
+create or replace function has_permission(module text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select can_do(module, 'edit');
+$$;
 
 create or replace function owner_exists() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -475,19 +516,27 @@ for each row execute function profiles_guard();
 create or replace function admin_update_profile(target_user uuid, new_full_name text, new_role user_role, new_status text)
 returns void
 language plpgsql security definer set search_path = public as $$
-declare cur record; other_owners int;
+declare cur record; other_owners int; i_am_owner boolean := is_owner();
 begin
-  if not is_owner() then raise exception 'Sirf Owner staff accounts edit kar sakta hai'; end if;
+  if not is_admin() then raise exception 'Sirf Owner ya Manager staff accounts edit kar sakta hai'; end if;
   if new_role is null then raise exception 'Role zaroori hai'; end if;
   if new_status is null or new_status not in ('active','suspended') then raise exception 'Invalid status'; end if;
   select * into cur from profiles where id = target_user for update;
   if not found then raise exception 'Account nahi mila'; end if;
-  if target_user = auth.uid() and (new_role <> 'owner' or new_status <> 'active') then
-    raise exception 'Aap apna khud ka Owner role ya status tabdeel nahi kar sakte (warna app lock ho jayegi)';
+  if target_user = auth.uid() and (new_role::text <> cur.role::text or new_status <> 'active') then
+    raise exception 'Aap apna khud ka role ya status tabdeel nahi kar sakte (warna app lock ho jayegi)';
   end if;
-  if cur.role = 'owner' and (new_role <> 'owner' or new_status <> 'active') then
+  if not i_am_owner then
+    if cur.role::text in ('owner', 'manager') and target_user <> auth.uid() then
+      raise exception 'Manager kisi Owner ya doosre Manager ka account nahi badal sakta';
+    end if;
+    if new_role::text in ('owner', 'manager') and target_user <> auth.uid() then
+      raise exception 'Sirf Owner kisi ko Owner ya Manager bana sakta hai';
+    end if;
+  end if;
+  if cur.role::text = 'owner' and (new_role::text <> 'owner' or new_status <> 'active') then
     select count(*) into other_owners from profiles
-    where role = 'owner' and status = 'active' and id <> target_user;
+    where role::text = 'owner' and status = 'active' and id <> target_user;
     if other_owners = 0 then raise exception 'Kam az kam ek active Owner hona zaroori hai'; end if;
   end if;
   update profiles
@@ -497,15 +546,34 @@ end; $$;
 
 create or replace function admin_set_permissions(target_user uuid, perms jsonb) returns void
 language plpgsql security definer set search_path = public as $$
-declare clean jsonb;
+declare clean jsonb; t_role text;
 begin
-  if not is_owner() then raise exception 'Sirf Owner permissions set kar sakta hai'; end if;
-  if exists (select 1 from profiles where id = target_user and role = 'owner') then
-    raise exception 'Owner ki permissions restrict nahi ki ja sakti';
-  end if;
-  select coalesce(jsonb_object_agg(key, value), '{}'::jsonb) into clean
-  from jsonb_each(coalesce(perms, '{}'::jsonb))
-  where jsonb_typeof(value) = 'boolean';
+  if not is_admin() then raise exception 'Sirf Owner ya Manager permissions set kar sakta hai'; end if;
+  select role::text into t_role from profiles where id = target_user;
+  if t_role is null then raise exception 'Account nahi mila'; end if;
+  if t_role = 'owner' then raise exception 'Owner ki permissions restrict nahi ki ja sakti'; end if;
+  if target_user = auth.uid() then raise exception 'Apni permissions khud nahi badal sakte'; end if;
+  if t_role = 'manager' and not is_owner() then raise exception 'Manager ki permissions sirf Owner badal sakta hai'; end if;
+  -- keep known modules only; booleans (old style) or {view, add, edit, delete};
+  -- any write right also gives view (otherwise saving would fail)
+  select coalesce(jsonb_object_agg(m.key, m.val), '{}'::jsonb) into clean
+  from (
+    select e.key,
+           case
+             when jsonb_typeof(e.value) = 'boolean' then e.value
+             when jsonb_typeof(e.value) = 'object' then (
+               select case when coalesce((o ->> 'add')::boolean, false) or coalesce((o ->> 'edit')::boolean, false)
+                                or coalesce((o ->> 'delete')::boolean, false)
+                           then o || '{"view": true}'::jsonb else o end
+               from (select jsonb_object_agg(a.key, a.value) as o from jsonb_each(e.value) a
+                     where a.key in ('view', 'add', 'edit', 'delete') and jsonb_typeof(a.value) = 'boolean') x
+               where x.o is not null)
+           end as val
+    from jsonb_each(coalesce(perms, '{}'::jsonb)) e
+    where e.key in ('purchase','parties','ledger','payments','cashbook','sales','production','stock','labor','transport',
+                    'machinery','expenses','tax','zakat','products','weighbridge','reports')
+  ) m
+  where m.val is not null;
   update profiles set permissions = clean where id = target_user;
 end; $$;
 
@@ -623,7 +691,7 @@ create or replace function settings_before() returns trigger
 language plpgsql set search_path = public as $$
 begin
   new.id := 1;
-  new.mill_name := coalesce(nullif(trim(new.mill_name), ''), 'Rice Mill');
+  new.mill_name := coalesce(nullif(trim(new.mill_name), ''), 'Jatala Rice Mills');
   new.address := coalesce(new.address, ''); new.phone := coalesce(new.phone, '');
   new.ntn := coalesce(new.ntn, ''); new.strn := coalesce(new.strn, '');
   new.invoice_footer := coalesce(new.invoice_footer, '');
@@ -744,7 +812,7 @@ create or replace function merge_party(p_from uuid, p_into uuid) returns void
 language plpgsql security definer set search_path = public as $$
 declare a parties; b parties;
 begin
-  if not (has_permission('parties') and has_permission('ledger')) then
+  if not (can_do('parties', 'edit') and can_do('ledger', 'edit')) then
     raise exception 'Party merge karne ki ijazat nahi';
   end if;
   select * into a from parties where id = p_from;
@@ -899,7 +967,7 @@ create or replace function merge_product(p_from uuid, p_into uuid) returns void
 language plpgsql security definer set search_path = public as $$
 declare a products; b products;
 begin
-  if not has_permission('products') then raise exception 'Products badalne ki ijazat nahi'; end if;
+  if not can_do('products', 'edit') then raise exception 'Products badalne ki ijazat nahi'; end if;
   select * into a from products where id = p_from;
   select * into b from products where id = p_into;
   if a.id is null or b.id is null then raise exception 'Product nahi mila'; end if;
@@ -913,7 +981,7 @@ create or replace function merge_variety(p_from uuid, p_into uuid) returns void
 language plpgsql security definer set search_path = public as $$
 declare a varieties; b varieties;
 begin
-  if not has_permission('products') then raise exception 'Varieties badalne ki ijazat nahi'; end if;
+  if not can_do('products', 'edit') then raise exception 'Varieties badalne ki ijazat nahi'; end if;
   select * into a from varieties where id = p_from;
   select * into b from varieties where id = p_into;
   if a.id is null or b.id is null then raise exception 'Variety nahi mili'; end if;
@@ -2295,15 +2363,15 @@ begin
   truncate table purchases, ledger_entries, production_batches, stock_lots, stock_adjustments, sales, payments,
                  labor_entries, transport_entries, machinery_log, expenses, tax_records, zakat_assessments,
                  cash_entries, contracts, weighments, drying_batches, bag_movements, activity_log restart identity;
-  delete from doc_counters;
+  delete from doc_counters where true;
 
   perform set_config('kk.restoring', 'on', true);
   if p_mode = 'everything' then
     truncate table parties;
   elsif p_mode = 'keep_parties' then
-    update parties set opening_balance = 0;
+    update parties set opening_balance = 0 where true;
   else
-    update parties set opening_balance = 0, opening_date = v_today;
+    update parties set opening_balance = 0, opening_date = v_today where true;
     insert into parties (party_type, name, opening_balance, opening_date)
     select x->>'t', x->>'n', (x->>'b')::numeric, v_today from jsonb_array_elements(v_bal) x
     on conflict (party_type, (lower(name))) do update
@@ -2359,7 +2427,7 @@ declare
 begin
   if not is_owner() then raise exception 'Sirf Owner backup restore kar sakta hai'; end if;
   if p_data is null or jsonb_typeof(p_data) <> 'object' or not (p_data ? 'purchases' or p_data ? 'ledger_entries') then
-    raise exception 'Yeh Kanta Khata ki backup file nahi lagti';
+    raise exception 'Yeh Jatala Rice Mills app ki backup file nahi lagti';
   end if;
 
   perform set_config('kk.restoring', 'on', true);
@@ -2423,6 +2491,47 @@ begin
   return counts;
 end; $$;
 
+
+-- Owner: delete chosen registers between two dates (khata entries follow
+-- automatically; locked periods are refused by the period lock).
+create or replace function owner_delete_data(p_tables text[], p_from date, p_to date) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  t text;
+  col text;
+  n int;
+  res jsonb := '{}'::jsonb;
+  allowed jsonb := '{"purchases":"date","sales":"date","payments":"date","ledger_entries":"date","production_batches":"date",
+                     "stock_adjustments":"date","stock_lots":"date_in","labor_entries":"date","transport_entries":"date",
+                     "machinery_log":"date","expenses":"date","cash_entries":"date","tax_records":"date",
+                     "zakat_assessments":"assessment_date","contracts":"date","weighments":"date","drying_batches":"date",
+                     "bag_movements":"date"}'::jsonb;
+begin
+  if not is_owner() then raise exception 'Sirf Owner data delete kar sakta hai'; end if;
+  if p_from is null or p_to is null or p_to < p_from then raise exception 'Sahi muddat (se / tak) chunein'; end if;
+  if p_tables is null or cardinality(p_tables) = 0 then raise exception 'Kam az kam ek register chunein'; end if;
+  if exists (select 1 from settings where id = 1 and lock_date is not null and p_from <= lock_date) then
+    raise exception 'Hisaab % tak band (lock) hai — chuni hui muddat lock se takrati hai. Pehle lock ki tareekh peeche karein.',
+      (select to_char(lock_date, 'DD-MM-YYYY') from settings where id = 1);
+  end if;
+  foreach t in array p_tables loop
+    col := allowed ->> t;
+    if col is null then raise exception 'Yeh register delete nahi ho sakta: %', t; end if;
+    if t = 'ledger_entries' then
+      -- only manual khata entries; auto ones go with their source records
+      execute format('delete from %I where %I between $1 and $2 and source = %L', t, col, 'manual') using p_from, p_to;
+    else
+      execute format('delete from %I where %I between $1 and $2', t, col) using p_from, p_to;
+    end if;
+    get diagnostics n = row_count;
+    res := res || jsonb_build_object(t, n);
+  end loop;
+  insert into activity_log (user_id, table_name, action, record_id, details)
+  values (auth.uid(), 'system', 'DELETE_RANGE', null,
+          jsonb_build_object('message', 'Owner ne muddat ka data delete kiya', 'from', p_from, 'to', p_to, 'counts', res));
+  return res;
+end; $$;
+
 -- ---------------------------------------------------------------------------
 -- Row-level security. Read: any approved staff member. Write: per-module
 -- permission (role default, overridable per user by the Owner).
@@ -2448,11 +2557,11 @@ begin
 end $$;
 
 create policy "profiles_read" on profiles for select
-  using (auth.uid() = id or (select is_owner()));
+  using (auth.uid() = id or (select is_admin()));
 create policy "profiles_update_own_name" on profiles for update
   using (auth.uid() = id) with check (auth.uid() = id);
 
-create policy "activity_read_owner" on activity_log for select using ((select is_owner()));
+create policy "activity_read_admin" on activity_log for select using ((select is_admin()));
 
 create policy "settings_read" on settings for select using ((select is_approved()));
 create policy "settings_update" on settings for update using ((select is_owner())) with check ((select is_owner()));
@@ -2469,23 +2578,24 @@ begin
     ('weighments','weighbridge'), ('drying_batches','production'), ('bag_movements','stock')
   ) v(tbl, module)
   loop
-    execute format('create policy %I on %I for select using ((select is_approved()))', r.tbl || '_read', r.tbl);
-    execute format('create policy %I on %I for insert with check ((select has_permission(%L)))', r.tbl || '_insert', r.tbl, r.module);
-    execute format('create policy %I on %I for update using ((select has_permission(%L))) with check ((select has_permission(%L)))',
-                   r.tbl || '_update', r.tbl, r.module, r.module);
-    execute format('create policy %I on %I for delete using ((select has_permission(%L)))', r.tbl || '_delete', r.tbl, r.module);
+    execute format('create policy %I on %I for select using ((select can_do(%L, %L)))', r.tbl || '_read', r.tbl, r.module, 'view');
+    execute format('create policy %I on %I for insert with check ((select can_do(%L, %L)))', r.tbl || '_insert', r.tbl, r.module, 'add');
+    execute format('create policy %I on %I for update using ((select can_do(%L, %L))) with check ((select can_do(%L, %L)))',
+                   r.tbl || '_update', r.tbl, r.module, 'edit', r.module, 'edit');
+    execute format('create policy %I on %I for delete using ((select can_do(%L, %L)))', r.tbl || '_delete', r.tbl, r.module, 'delete');
   end loop;
 end $$;
 
 -- Sauda: sale contracts follow the Sales permission, purchase contracts the Purchase one
-create policy "contracts_read" on contracts for select using ((select is_approved()));
+create policy "contracts_read" on contracts for select
+  using ((kind = 'sale' and (select can_do('sales', 'view'))) or (kind = 'purchase' and (select can_do('purchase', 'view'))));
 create policy "contracts_insert" on contracts for insert
-  with check ((kind = 'sale' and (select has_permission('sales'))) or (kind = 'purchase' and (select has_permission('purchase'))));
+  with check ((kind = 'sale' and (select can_do('sales', 'add'))) or (kind = 'purchase' and (select can_do('purchase', 'add'))));
 create policy "contracts_update" on contracts for update
-  using ((kind = 'sale' and (select has_permission('sales'))) or (kind = 'purchase' and (select has_permission('purchase'))))
-  with check ((kind = 'sale' and (select has_permission('sales'))) or (kind = 'purchase' and (select has_permission('purchase'))));
+  using ((kind = 'sale' and (select can_do('sales', 'edit'))) or (kind = 'purchase' and (select can_do('purchase', 'edit'))))
+  with check ((kind = 'sale' and (select can_do('sales', 'edit'))) or (kind = 'purchase' and (select can_do('purchase', 'edit'))));
 create policy "contracts_delete" on contracts for delete
-  using ((kind = 'sale' and (select has_permission('sales'))) or (kind = 'purchase' and (select has_permission('purchase'))));
+  using ((kind = 'sale' and (select can_do('sales', 'delete'))) or (kind = 'purchase' and (select can_do('purchase', 'delete'))));
 
 -- Column-level lock-down of profiles (defence in depth with profiles_guard)
 revoke insert, update, delete on profiles from anon, authenticated;
@@ -2519,6 +2629,8 @@ revoke execute on function admin_set_permissions(uuid, jsonb) from public, anon;
 revoke execute on function owner_reset_all_data(text) from public, anon;
 revoke execute on function owner_restore_backup(jsonb) from public, anon;
 revoke execute on function merge_party(uuid, uuid) from public, anon;
+revoke execute on function owner_delete_data(text[], date, date) from public, anon;
+grant execute on function owner_delete_data(text[], date, date) to authenticated;
 grant execute on function admin_update_profile(uuid, text, user_role, text) to authenticated;
 grant execute on function admin_set_permissions(uuid, jsonb) to authenticated;
 grant execute on function owner_reset_all_data(text) to authenticated;
@@ -2683,13 +2795,13 @@ begin
   perform set_doc_no('sale_invoice', (select max(nullif(substring(invoice_no from '(\d+)$'), '')::bigint) from sales));
 
   -- 4) Payments: re-post so BOUNCED cheques stop counting in the khata
-  update payments set notes = coalesce(notes, '');
+  update payments set notes = coalesce(notes, '') where true;
 
   -- 5) Labor: wages now go into each worker's khata (earned = Jama, paid = Banam)
-  update labor_entries set paid_date = case when paid then coalesce(paid_date, date) else null end;
+  update labor_entries set paid_date = case when paid then coalesce(paid_date, date) else null end where true;
 
   -- 6) Transport: fill the new total (freight + commission)
-  update transport_entries set paid_via = coalesce(paid_via, 'Cash');
+  update transport_entries set paid_via = coalesce(paid_via, 'Cash') where true;
 
   -- 7) Manual khata entries: snap names to the single spelling in Parties
   update ledger_entries l
@@ -2720,6 +2832,9 @@ begin
   update production_batches set outputs = '[]'::jsonb
    where jsonb_array_length(outputs) = 0
      and (rice_output_kg + coalesce(kanki25, 0) + coalesce(kanki50, 0) + coalesce(kanki100, 0) + coalesce(bran_kg, 0) + coalesce(husk_kg, 0)) > 0;
+
+  -- 10) brand: the untouched default name becomes Jatala Rice Mills
+  update settings set mill_name = 'Jatala Rice Mills' where id = 1 and mill_name = 'Rice Mill';
 
   perform set_config('kk.ledger_internal', 'off', true);
   perform set_config('kk.restoring', 'off', true);

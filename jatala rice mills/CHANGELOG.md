@@ -1,5 +1,32 @@
 # Changelog
 
+## v5.4.0 — Jatala Rice Mills: Reset fix, Manager + custom permissions, delete options, English/Roman Urdu, Dark mode, Guide
+
+- **Bug fix — Reset par "DELETE requires a WHERE clause".**
+  - Supabase ki API par `pg-safeupdate` chalta hai jo bina `WHERE` ke DELETE/UPDATE rokta hai.
+  - Reset function aur upgrade script ki aisi 6 lines theek kar di gayin.
+  - Ab saare tests aur browser tests isi guard ke saath chalte hain, taa ke aisi ghalti dobara na aaye.
+- **Naam:** app ab **Jatala Rice Mills** hai (title, menu, login, print, backup file). Mill ka default naam bhi yahi.
+- **Manager role:** Owner ke baad. Manager staff (Munshi/Godown/Sales) ke accounts banata, sambhalta aur un ki permissions deta hai. Owner/Manager ko nahi chhoo sakta. Settings, lock, restore, delete sirf Owner ke paas.
+- **Custom permissions:**
+  - Har user, har module, alag **Dekhna / Naya / Badalna / Delete** — Users & Roles → Permissions.
+  - Sirf Owner aur Manager de sakte hain.
+  - Database khud lagu karta hai.
+  - Jis module ki "Dekhna" ijazat band ho, woh menu aur page dono se ghaib.
+- **Delete options:** Owner registers + muddat chun kar data mita sakta hai (khata saath saaf). Lock wali muddat aur audit log mehfooz rehte hain.
+- **English / Roman Urdu switch:**
+  - Saari screens, menu, buttons, messages aur database ke error messages (1,000+ lines).
+  - Har device par yaad rehta hai.
+- **Dark mode:** ☾ / ☀ button. Phone/PC ki setting se shuru hota hai aur yaad rehta hai.
+- **Guide / Madad page:**
+  - Har user ka role aur us ki ijazat ki table.
+  - Fasal se bazaar tak ka process.
+  - Har khulne wale hisse ka step-by-step tareeqa, dono zabanon mein.
+- **Tests:**
+  - SQL suite (safeupdate on) naye install aur v4 / v5.0 / v5.1 / v5.2 / v5.3 se upgrade, chhe raston par pass; sab ka structure bilkul ek jaisa.
+  - 42 unit tests pass.
+  - Browser test ke chhe hisse (A–F) pass. Phase F mein: Manager ne staff banaya aur Delete ki ijazat li, Munshi ko Delete button nahi dikha, muddat ka data delete hua, English/Urdu aur dark mode chale.
+
 ## v5.3.0 — Fasal ke baad ka poora process
 
 - **Paddy Sukhai (Drying).**

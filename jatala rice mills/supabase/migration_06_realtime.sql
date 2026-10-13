@@ -1,5 +1,5 @@
 -- ============================================================================
--- Kanta Khata — migration for any existing project. Enables Supabase Realtime
+-- Jatala Rice Mills — migration for any existing project. Enables Supabase Realtime
 -- on every operational table, so edits/inserts/deletes appear instantly for
 -- everyone looking at the same module — no manual refresh, no polling delay.
 --

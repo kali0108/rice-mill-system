@@ -1,6 +1,11 @@
 \set ON_ERROR_STOP 1
 \pset pager off
 set client_min_messages = warning;
+-- Behave like the Supabase API: pg-safeupdate blocks UPDATE/DELETE without WHERE.
+-- (If the library is not installed on this machine the tests still run.)
+\set ON_ERROR_STOP 0
+load 'safeupdate';
+\set ON_ERROR_STOP 1
 
 -- ---------------------------------------------------------------- helpers
 create schema if not exists test;
@@ -108,8 +113,8 @@ set role authenticated;
 select admin_update_profile(:'GODOWN', 'Godown Wala', 'godown_incharge', 'active');
 
 -- 2d owner cannot lock themselves out; last-owner protection
-select test.err($$select admin_update_profile('11111111-1111-1111-1111-111111111111', 'Haji Owner', 'munshi', 'active')$$, 'khud ka owner', 'owner cannot demote self');
-select test.err($$select admin_update_profile('11111111-1111-1111-1111-111111111111', 'Haji Owner', 'owner', 'suspended')$$, 'khud ka owner', 'owner cannot suspend self');
+select test.err($$select admin_update_profile('11111111-1111-1111-1111-111111111111', 'Haji Owner', 'munshi', 'active')$$, 'khud ka role', 'owner cannot demote self');
+select test.err($$select admin_update_profile('11111111-1111-1111-1111-111111111111', 'Haji Owner', 'owner', 'suspended')$$, 'khud ka role', 'owner cannot suspend self');
 select test.err($$select admin_set_permissions('11111111-1111-1111-1111-111111111111', '{"sales":false}')$$, 'restrict nahi', 'owner perms cannot be restricted');
 -- permissions are sanitised to booleans only
 select admin_set_permissions(:'SALES', '{"stock": true, "evil": "x", "payments": false}');
@@ -446,7 +451,7 @@ insert into payments (date, party_type, party_name, direction, method, amount, c
 reset role;
 select test.login(:'OWNER');
 set role authenticated;
-update settings set lock_date = '2026-10-03';
+update settings set lock_date = '2026-10-03' where id = 1;
 select test.err($$delete from purchases where slip_no = 'PS-00001'$$, 'band \(lock\)', 'owner too cannot delete a locked entry');
 reset role;
 select test.login(:'MUNSHI');
@@ -463,7 +468,7 @@ insert into expenses (date, category, amount) values ('2026-10-04', 'Other', 10)
 reset role;
 select test.login(:'OWNER');
 set role authenticated;
-update settings set lock_date = null;
+update settings set lock_date = null where id = 1;
 delete from expenses where date = '2026-10-04' and category = 'Other' and amount = 10;
 -- aging (FIFO): 1000 (Jun) + 500 (Aug) + 300 (Oct) owed, 900 received -> 100 old, 500 mid, 300 new
 insert into ledger_entries (date, party_type, party_name, description, debit) values ('2026-06-01', 'Customer', 'Aging Test', 'bill 1', 1000), ('2026-08-15', 'Customer', 'Aging Test', 'bill 2', 500), ('2026-10-01', 'Customer', 'Aging Test', 'bill 3', 300);
@@ -488,11 +493,11 @@ reset role;
 select test.eq((select moisture_base_pct || '|' || moisture_kg_per_point from settings), '0|0', 'moisture rule off by default');
 select test.login(:'OWNER');
 set role authenticated;
-update settings set moisture_base_pct = 14, moisture_kg_per_point = 1;
-update settings set moisture_kg_per_point = null;
+update settings set moisture_base_pct = 14, moisture_kg_per_point = 1 where id = 1;
+update settings set moisture_kg_per_point = null where id = 1;
 reset role;
 select test.eq((select moisture_base_pct || '|' || moisture_kg_per_point from settings), '14|0', 'null rule value -> 0');
-update settings set moisture_kg_per_point = 1;
+update settings set moisture_kg_per_point = 1 where id = 1;
 create table test.paddy_sb as select balance_kg from get_stock_summary() where item = 'Paddy' and variety = 'Super Basmati';
 grant select on test.paddy_sb to public;
 select test.login(:'GODOWN');
@@ -536,6 +541,66 @@ reset role;
 select test.login(null);
 set role anon;
 select test.err($$select get_costing(null, null)$$, 'permission denied', 'anon cannot read costing');
+reset role;
+
+-- ---------------------------------------------------------------- 8d. v5.4: manager, per-action permissions, delete options
+\set MANAGER '77777777-7777-7777-7777-777777777777'
+insert into auth.users (id, email, raw_user_meta_data) values (:'MANAGER', 'manager@mill.pk', '{"full_name":"Manager Sahib"}');
+set role service_role;
+update profiles set role = 'manager' where id = :'MANAGER';
+reset role;
+select test.login(:'MANAGER');
+set role authenticated;
+select test.eq((select count(*)::int from profiles), 6, 'manager sees all staff accounts');
+select test.ok((select count(*) from activity_log) > 0, 'manager can read the activity log');
+select test.err($$select admin_update_profile('11111111-1111-1111-1111-111111111111', 'x', 'munshi', 'active')$$, 'owner ya doosre manager', 'manager cannot touch the owner');
+select test.err($$select admin_update_profile('22222222-2222-2222-2222-222222222222', 'Munshi Sahib', 'owner', 'active')$$, 'sirf owner', 'manager cannot make an owner');
+select test.err($$select admin_update_profile('22222222-2222-2222-2222-222222222222', 'Munshi Sahib', 'manager', 'active')$$, 'sirf owner', 'manager cannot make a manager');
+select test.err($$select admin_update_profile('77777777-7777-7777-7777-777777777777', 'Manager Sahib', 'munshi', 'active')$$, 'khud ka role', 'manager cannot change own role');
+select test.err($$select admin_set_permissions('77777777-7777-7777-7777-777777777777', '{}')$$, 'khud nahi', 'manager cannot change own permissions');
+select test.err($$select owner_reset_all_data('everything')$$, 'sirf owner', 'manager cannot reset');
+select test.err($$select owner_delete_data(array['expenses'], '2026-01-01', '2026-12-31')$$, 'sirf owner', 'manager cannot bulk delete');
+-- custom permissions: munshi may add/edit purchases but not delete; sales staff cannot see the khata or cash book
+select admin_set_permissions(:'MUNSHI', '{"purchase": {"add": true, "edit": true, "delete": false}, "junk": {"view": true}}');
+select admin_set_permissions(:'SALES', '{"ledger": {"view": false}, "cashbook": {"view": false}, "payments": {"view": false, "add": false}}');
+reset role;
+select test.eq((select permissions from profiles where id = :'MUNSHI'), '{"purchase": {"add": true, "edit": true, "view": true, "delete": false}}'::jsonb, 'unknown modules dropped, write implies view');
+select test.login(:'MUNSHI');
+set role authenticated;
+insert into purchases (date, farmer_name, variety, gross_wt, tare_wt, rate_per_maund) values ('2026-10-10', 'Perm Test', 'Super Basmati', 500, 100, 4000);
+update purchases set rate_per_maund = 4100 where farmer_name = 'Perm Test';
+delete from purchases where farmer_name = 'Perm Test';
+select test.eq((select count(*)::int from purchases where farmer_name = 'Perm Test'), 1, 'delete right removed: row stays');
+reset role;
+select test.login(:'SALES');
+set role authenticated;
+select test.eq((select count(*)::int from ledger_entries), 0, 'khata hidden from this sales user');
+select test.eq((select count(*)::int from payments), 0, 'payments hidden from this sales user');
+select test.ok((select count(*) from sales) > 0, 'sales still visible');
+select test.ok(can_do('sales', 'add') and not can_do('ledger', 'view'), 'can_do reflects the custom permissions');
+reset role;
+select test.login(:'MANAGER');
+set role authenticated;
+select admin_set_permissions(:'SALES', '{}');
+reset role;
+select test.login(:'SALES');
+set role authenticated;
+select test.ok((select count(*) from ledger_entries) > 0, 'back to role defaults');
+reset role;
+-- delete options (Owner): chosen registers within dates, khata follows, lock respected
+select test.login(:'OWNER');
+set role authenticated;
+delete from purchases where farmer_name = 'Perm Test';
+insert into expenses (date, category, amount, paid_via, party_name) values ('2026-03-05', 'Other', 100, 'Udhaar', 'Old Supplier'), ('2026-03-06', 'Other', 200, 'Cash', '');
+select test.eq((select owner_delete_data(array['expenses'], '2026-03-01', '2026-03-31')->>'expenses'), '2', 'range delete count');
+select test.eq((select count(*)::int from ledger_entries where party_name = 'Old Supplier' and source = 'expense'), 0, 'khata entries follow the deleted records');
+select test.err($$select owner_delete_data(array['activity_log'], '2026-01-01', '2026-12-31')$$, 'nahi ho sakta', 'audit log cannot be bulk deleted');
+update settings set lock_date = '2026-03-31' where id = 1;
+insert into payments (date, party_type, party_name, direction, method, amount) values ('2026-04-02', 'Other', 'Lock Del', 'Paid', 'Cash', 10);
+select test.err($$select owner_delete_data(array['payments'], '2026-01-01', '2026-12-31')$$, 'band \(lock\)', 'range delete refuses locked days');
+update settings set lock_date = null where id = 1;
+select test.eq((select owner_delete_data(array['payments'], '2026-04-01', '2026-04-30')->>'payments'), '1', 'unlocked range deletes');
+select test.eq((select count(*)::int from activity_log where action = 'DELETE_RANGE'), 2, 'range deletes are logged');
 reset role;
 
 -- ---------------------------------------------------------------- 9. backup -> reset (carry forward) -> restore
@@ -627,7 +692,7 @@ select test.eq((select count(*)::int from ledger_entries), 0, 'keep_parties: kha
 select test.ok((select count(*) from parties) > 0, 'keep_parties: parties kept');
 select owner_reset_all_data('everything');
 select test.eq((select count(*)::int from parties), 0, 'everything: parties gone');
-select test.eq((select count(*)::int from profiles), 5, 'logins untouched by reset');
+select test.eq((select count(*)::int from profiles), 6, 'logins untouched by reset');
 select test.ok((select count(*) from products) >= 11 and (select count(*) from varieties) >= 11, 'reset keeps products & varieties');
 reset role;
 

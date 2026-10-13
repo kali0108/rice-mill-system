@@ -1,6 +1,6 @@
 {
-  "name": "Kanta Khata — Rice Mill Manager",
-  "short_name": "Kanta Khata",
+  "name": "Jatala Rice Mills — Rice Mill Manager",
+  "short_name": "Jatala Mills",
   "description": "Rice mill ka hisaab: kharid, khata, production, stock, sales, rokar aur reports.",
   "start_url": "/dashboard",
   "scope": "/",

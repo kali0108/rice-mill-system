@@ -1,5 +1,5 @@
 -- ============================================================================
--- Kanta Khata — migration for any project on an earlier schema (v2/v3/v4).
+-- Jatala Rice Mills — migration for any project on an earlier schema (v2/v3/v4).
 -- Needed now that every module supports editing existing entries, not just
 -- add/delete: without this, editing a Purchase/Sale/Payment's amount would
 -- leave its auto-generated Khata entry showing the old, wrong number.

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { T } from '../lib/i18n';
 
 // Shown when a new version of the app has been deployed and downloaded.
 export default function UpdateBanner() {
@@ -11,7 +12,7 @@ export default function UpdateBanner() {
   if (!waiting) return null;
   return (
     <div className="update-banner">
-      <span>App ka naya version aa gaya hai.</span>
+      <span>{T("App ka naya version aa gaya hai.")}</span>
       <button
         type="button"
         className="btn small gold"
@@ -19,9 +20,7 @@ export default function UpdateBanner() {
           waiting.postMessage('skipWaiting');
           setTimeout(() => window.location.reload(), 1200);
         }}
-      >
-        Update Karein
-      </button>
+      >{T("Update Karein")}</button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 -- ============================================================================
--- Kanta Khata — migration for projects already on schema v2 or v3.
+-- Jatala Rice Mills — migration for projects already on schema v2 or v3.
 -- Run AFTER migration_02 and migration_03 if you haven't already (check your
 -- SQL Editor history, or just re-run them — every statement in them is safe
 -- to run twice via "if exists"/"or replace").

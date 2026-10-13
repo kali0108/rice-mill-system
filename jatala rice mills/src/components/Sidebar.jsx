@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/DataContext';
-import { ROLE_LABELS } from '../lib/roles';
+import { ROLE_LABELS, canOpenRoute, isAdmin } from '../lib/roles';
+import { T } from '../lib/i18n';
 
 const ICON = {
   dashboard: <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1.2"/><rect x="11" y="2.5" width="6.5" height="6.5" rx="1.2"/><rect x="2.5" y="11" width="6.5" height="6.5" rx="1.2"/><rect x="11" y="11" width="6.5" height="6.5" rx="1.2"/></svg>,
@@ -31,51 +32,51 @@ const ICON = {
 };
 
 const GROUPS = [
-  { title: null, items: [{ to: '/dashboard', label: 'Dashboard', icon: 'dashboard' }] },
+  { title: null, items: [{ to: '/dashboard', label: T("Dashboard"), icon: 'dashboard' }, { to: '/guide', label: T("Guide / Madad"), icon: 'reports' }] },
   {
-    title: 'Kharid & Khata',
+    title: T("Kharid & Khata"),
     items: [
-      { to: '/weighbridge', label: 'Kanta (Weighbridge)', icon: 'transport' },
-      { to: '/purchase', label: 'Paddy Purchase', icon: 'purchase' },
-      { to: '/contracts', label: 'Sauda / Contracts', icon: 'statement' },
-      { to: '/parties', label: 'Parties', icon: 'parties' },
-      { to: '/statement', label: 'Khata Statement', icon: 'statement' },
-      { to: '/ledger', label: 'Khata / Ledger', icon: 'ledger' },
-      { to: '/payments', label: 'Payments & Cheques', icon: 'payments' },
-      { to: '/cashbook', label: 'Cash Book / Rokar', icon: 'cashbook' },
+      { to: '/weighbridge', label: T("Kanta (Weighbridge)"), icon: 'transport' },
+      { to: '/purchase', label: T("Paddy Purchase"), icon: 'purchase' },
+      { to: '/contracts', label: T("Sauda / Contracts"), icon: 'statement' },
+      { to: '/parties', label: T("Parties"), icon: 'parties' },
+      { to: '/statement', label: T("Khata Statement"), icon: 'statement' },
+      { to: '/ledger', label: T("Khata / Ledger"), icon: 'ledger' },
+      { to: '/payments', label: T("Payments & Cheques"), icon: 'payments' },
+      { to: '/cashbook', label: T("Cash Book / Rokar"), icon: 'cashbook' },
     ],
   },
   {
-    title: 'Mill',
+    title: T("Mill"),
     items: [
-      { to: '/drying', label: 'Sukhai (Drying)', icon: 'production' },
-      { to: '/production', label: 'Production', icon: 'production' },
-      { to: '/stock', label: 'Stock / Godown', icon: 'stock' },
-      { to: '/products', label: 'Products & Varieties', icon: 'products' },
-      { to: '/bags', label: 'Bardana (Boriyan)', icon: 'stock' },
-      { to: '/sales', label: 'Sales & Billing', icon: 'sales' },
-      { to: '/labor', label: 'Labor & Wages', icon: 'labor' },
-      { to: '/transport', label: 'Transport', icon: 'transport' },
-      { to: '/expenses', label: 'Machinery & Kharche', icon: 'expenses' },
+      { to: '/drying', label: T("Sukhai (Drying)"), icon: 'production' },
+      { to: '/production', label: T("Production"), icon: 'production' },
+      { to: '/stock', label: T("Stock / Godown"), icon: 'stock' },
+      { to: '/products', label: T("Products & Varieties"), icon: 'products' },
+      { to: '/bags', label: T("Bardana (Boriyan)"), icon: 'stock' },
+      { to: '/sales', label: T("Sales & Billing"), icon: 'sales' },
+      { to: '/labor', label: T("Labor & Wages"), icon: 'labor' },
+      { to: '/transport', label: T("Transport"), icon: 'transport' },
+      { to: '/expenses', label: T("Machinery & Kharche"), icon: 'expenses' },
     ],
   },
   {
-    title: 'Hisaab',
+    title: T("Hisaab"),
     items: [
-      { to: '/analytics', label: 'Stats / Analytics', icon: 'reports' },
-      { to: '/reports', label: 'Reports', icon: 'reports' },
-      { to: '/tax', label: 'Tax & Zakat', icon: 'tax' },
-      { to: '/calculator', label: 'Calculator', icon: 'calculator' },
+      { to: '/analytics', label: T("Stats / Analytics"), icon: 'reports' },
+      { to: '/reports', label: T("Reports"), icon: 'reports' },
+      { to: '/tax', label: T("Tax & Zakat"), icon: 'tax' },
+      { to: '/calculator', label: T("Calculator"), icon: 'calculator' },
     ],
   },
 ];
 
 const ADMIN = [
-  { to: '/users', label: 'Users & Roles', icon: 'users' },
-  { to: '/settings', label: 'Mill Settings', icon: 'settings' },
-  { to: '/activity', label: 'Activity Log', icon: 'activity' },
-  { to: '/import-export', label: 'Backup / Import', icon: 'importExport' },
-  { to: '/reset', label: 'Reset / Naya Season', icon: 'reset', danger: true },
+  { to: '/users', label: T("Users & Roles"), icon: 'users' },
+  { to: '/settings', label: T("Mill Settings"), icon: 'settings', ownerOnly: true },
+  { to: '/activity', label: T("Activity Log"), icon: 'activity' },
+  { to: '/import-export', label: T("Backup / Import"), icon: 'importExport' },
+  { to: '/reset', label: T("Reset / Delete Data"), icon: 'reset', danger: true, ownerOnly: true },
 ];
 
 function Item({ item, onNavigate }) {
@@ -96,29 +97,33 @@ export default function Sidebar({ open, onNavigate }) {
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`}>
       <div className="brand">
-        <div className="mark">Kanta Khata</div>
-        <div className="sub">{settings.mill_name && settings.mill_name !== 'Rice Mill' ? settings.mill_name : 'Rice Mill Manager'}</div>
+        <div className="mark">{T("Jatala Rice Mills")}</div>
+        <div className="sub">{settings.mill_name && settings.mill_name !== 'Jatala Rice Mills' ? settings.mill_name : T("Rice Mill Manager")}</div>
       </div>
       <nav>
-        {GROUPS.map((g) => (
-          <div key={g.title || 'main'} className="nav-group">
-            {g.title && <div className="nav-title">{g.title}</div>}
-            {g.items.map((it) => <Item key={it.to} item={it} onNavigate={onNavigate} />)}
-          </div>
-        ))}
-        {role === 'owner' && (
+        {GROUPS.map((g) => {
+          const items = g.items.filter((it) => canOpenRoute(profile, it.to));
+          if (!items.length) return null;
+          return (
+            <div key={g.title || 'main'} className="nav-group">
+              {g.title && <div className="nav-title">{g.title}</div>}
+              {items.map((it) => <Item key={it.to} item={it} onNavigate={onNavigate} />)}
+            </div>
+          );
+        })}
+        {isAdmin(profile) && (
           <div className="nav-group">
-            <div className="nav-title">Owner</div>
-            {ADMIN.map((it) => <Item key={it.to} item={it} onNavigate={onNavigate} />)}
+            <div className="nav-title">{role === 'owner' ? T("Owner") : T("Manager")}</div>
+            {ADMIN.filter((it) => !it.ownerOnly || role === 'owner').map((it) => <Item key={it.to} item={it} onNavigate={onNavigate} />)}
           </div>
         )}
       </nav>
       <div className="sidebar-footer">
         <NavLink to="/account" onClick={onNavigate} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-          {ICON.account}<span>{profile?.full_name || 'Mera Account'}</span>
+          {ICON.account}<span>{profile?.full_name || T("Mera Account")}</span>
         </NavLink>
         <div className="who">{ROLE_LABELS[role] || ''}</div>
-        <button type="button" className="btn small" style={{ width: '100%' }} onClick={signOut}>Sign Out</button>
+        <button type="button" className="btn small" style={{ width: '100%' }} onClick={signOut}>{T("Sign Out")}</button>
       </div>
     </aside>
   );

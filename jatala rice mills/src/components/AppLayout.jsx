@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import Prefs from './Prefs';
 import OfflineBanner from './OfflineBanner';
 import UpdateBanner from './UpdateBanner';
 import ErrorBoundary from './ErrorBoundary';
@@ -8,14 +9,15 @@ import { DataProvider } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { canWrite } from '../lib/roles';
 import { fmtDate, todayStr } from '../lib/dates';
+import { T } from '../lib/i18n';
 
 const TITLES = {
-  '/dashboard': 'Dashboard', '/purchase': 'Paddy Purchase (Kharid)', '/parties': 'Parties', '/statement': 'Khata Statement',
-  '/ledger': 'Khata / Ledger', '/payments': 'Payments & Cheques', '/cashbook': 'Cash Book / Rokar',
-  '/production': 'Production', '/stock': 'Stock / Godown', '/products': 'Products & Varieties', '/analytics': 'Stats / Analytics', '/contracts': 'Sauda / Contracts', '/weighbridge': 'Kanta (Weighbridge)', '/drying': 'Paddy Sukhai (Drying)', '/bags': 'Bardana (Boriyan)', '/sales': 'Sales & Billing', '/labor': 'Labor & Wages',
-  '/transport': 'Transport / Logistics', '/expenses': 'Machinery & Kharche', '/tax': 'Tax & Zakat', '/reports': 'Reports',
-  '/calculator': 'Calculator', '/users': 'Users & Roles', '/settings': 'Mill Settings', '/activity': 'Activity Log',
-  '/import-export': 'Backup / Import / Export', '/reset': 'Reset / Naya Season', '/account': 'Mera Account',
+  '/dashboard': T('Dashboard'), '/purchase': T('Paddy Purchase (Kharid)'), '/parties': T('Parties'), '/statement': T('Khata Statement'),
+  '/ledger': T('Khata / Ledger'), '/payments': T('Payments & Cheques'), '/cashbook': T('Cash Book / Rokar'),
+  '/production': T('Production'), '/stock': T('Stock / Godown'), '/guide': T('Guide / Madad'), '/products': T('Products & Varieties'), '/analytics': T('Stats / Analytics'), '/contracts': T('Sauda / Contracts'), '/weighbridge': T('Kanta (Weighbridge)'), '/drying': T('Paddy Sukhai (Drying)'), '/bags': T('Bardana (Boriyan)'), '/sales': T('Sales & Billing'), '/labor': T('Labor & Wages'),
+  '/transport': T('Transport / Logistics'), '/expenses': T('Machinery & Kharche'), '/tax': T('Tax & Zakat'), '/reports': T('Reports'),
+  '/calculator': T('Calculator'), '/users': T('Users & Roles'), '/settings': T('Mill Settings'), '/activity': T('Activity Log'),
+  '/import-export': T('Backup / Import / Export'), '/reset': T('Reset / Delete Data'), '/account': T('Mera Account'),
 };
 
 export default function AppLayout() {
@@ -30,14 +32,14 @@ export default function AppLayout() {
   }, [location.pathname]);
 
   useEffect(() => {
-    document.title = title ? `${title} — Kanta Khata` : 'Kanta Khata';
+    document.title = title ? `${title} — Jatala Rice Mills` : 'Jatala Rice Mills';
   }, [title]);
 
   const quick = [
-    canWrite(profile, 'purchase') && { to: '/purchase', label: '+ Kharid' },
-    canWrite(profile, 'sales') && { to: '/sales', label: '+ Bill' },
-    canWrite(profile, 'payments') && { to: '/payments', label: '+ Payment' },
-    canWrite(profile, 'production') && { to: '/production', label: '+ Production' },
+    canWrite(profile, 'purchase') && { to: '/purchase', label: T("+ Kharid") },
+    canWrite(profile, 'sales') && { to: '/sales', label: T("+ Bill") },
+    canWrite(profile, 'payments') && { to: '/payments', label: T("+ Payment") },
+    canWrite(profile, 'production') && { to: '/production', label: T("+ Production") },
   ].filter(Boolean);
 
   return (
@@ -48,13 +50,14 @@ export default function AppLayout() {
         <main className="main">
           <UpdateBanner />
           <header className="topbar">
-            <button type="button" className="hamburger" aria-label="Menu" onClick={() => setNavOpen((o) => !o)}>
+            <button type="button" className="hamburger" aria-label={T("Menu")} onClick={() => setNavOpen((o) => !o)}>
               <span /><span /><span />
             </button>
             <div className="titlebox">
               <h1>{title}</h1>
               <div className="date">{fmtDate(todayStr())}</div>
             </div>
+            <Prefs />
             <div className="quickbtns">
               {quick.map((q) => (
                 <button key={q.to} type="button" className="btn" onClick={() => navigate(q.to)}>{q.label}</button>
@@ -63,7 +66,7 @@ export default function AppLayout() {
           </header>
           <OfflineBanner />
           <ErrorBoundary key={location.pathname}>
-            <Suspense fallback={<div className="empty loading-line">Loading…</div>}>
+            <Suspense fallback={<div className="empty loading-line">{T("Loading…")}</div>}>
               <Outlet />
             </Suspense>
           </ErrorBoundary>

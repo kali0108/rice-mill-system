@@ -4,6 +4,7 @@ import { subscribeTable, closeAllChannels } from '../lib/realtime';
 import { outboxCount, clearLocalData } from '../lib/offline';
 import { clearAllStores } from '../lib/tableStore';
 import { clearAllRpcStores } from '../lib/rpcStore';
+import { T } from '../lib/i18n';
 
 const AuthContext = createContext(null);
 const PROFILE_KEY = 'kk:profile';
@@ -99,8 +100,8 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     const pending = await outboxCount().catch(() => 0);
     if (pending > 0 && !window.confirm(
-      `${pending} entries abhi server par sync nahi huin.\n\nSign out karne se yeh is device se mit jayengi. ` +
-      'Behtar hai pehle internet on kar ke sync hone dein.\n\nPhir bhi Sign Out karein?'
+      `${pending}${T(" entries abhi server par sync nahi huin.\n\nSign out karne se yeh is device se mit jayengi. ")}` +
+      T("Behtar hai pehle internet on kar ke sync hone dein.\n\nPhir bhi Sign Out karein?")
     )) return false;
     clearAllStores();
     clearAllRpcStores();

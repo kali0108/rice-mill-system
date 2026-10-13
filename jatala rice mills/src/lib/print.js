@@ -40,13 +40,13 @@ function header(settings, title, number) {
   const s = settings || {};
   const lines = [s.address, s.phone ? 'Phone: ' + s.phone : '', [s.ntn ? 'NTN: ' + s.ntn : '', s.strn ? 'STRN: ' + s.strn : ''].filter(Boolean).join('  ·  ')]
     .filter(Boolean).map(esc).join('<br/>');
-  return `<div class="head"><div><div class="mill">${esc(s.mill_name || 'Rice Mill')}</div><div class="millsub">${lines}</div></div>
+  return `<div class="head"><div><div class="mill">${esc(s.mill_name || 'Jatala Rice Mills')}</div><div class="millsub">${lines}</div></div>
     <div class="doctitle"><div class="t">${esc(title)}</div>${number ? `<div class="n">${esc(number)}</div>` : ''}</div></div>`;
 }
 
 function footer(settings) {
   const note = settings?.invoice_footer ? `<div>${esc(settings.invoice_footer)}</div>` : '';
-  return `<div class="foot">${note}<div>Printed: ${esc(fmtDateTime(new Date().toISOString()))} — Kanta Khata</div></div>`;
+  return `<div class="foot">${note}<div>Printed: ${esc(fmtDateTime(new Date().toISOString()))} — Jatala Rice Mills</div></div>`;
 }
 
 export function openPrint(title, bodyHtml) {

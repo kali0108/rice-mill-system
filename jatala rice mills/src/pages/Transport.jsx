@@ -4,7 +4,7 @@ import { useDateRange } from '../hooks/useDateRange';
 import { useAuth } from '../context/AuthContext';
 import { useParties } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { canWrite } from '../lib/roles';
+import { can } from '../lib/roles';
 import { transportCalc, num, fmtNum, rs, sum } from '../lib/calc';
 import { todayStr, fmtDate } from '../lib/dates';
 import { TRANSPORT_TYPES, PAID_VIA, transportPartyType } from '../lib/constants';
@@ -14,6 +14,7 @@ import {
   Panel, Field, NumInput, PartyInput, BalanceHint, DateRangeBar, SearchBox, matchesSearch, useShowMore, FormActions,
   RowActions, Empty, PendingTag, StatCard, Badge, confirmDelete, SyncNote,
 } from '../components/ui';
+import { T } from '../lib/i18n';
 
 const blank = (prev) => ({
   date: prev?.date || todayStr(), entry_type: prev?.entry_type || 'Delivery', vehicle_no: '', driver_name: '', party_name: '',
@@ -37,7 +38,9 @@ export default function Transport() {
   const { profile } = useAuth();
   const { canonicalName } = useParties();
   const toast = useToast();
-  const writable = canWrite(profile, 'transport');
+  const writable = can(profile, 'transport', 'add');
+  const canEdit = can(profile, 'transport', 'edit');
+  const canDel = can(profile, 'transport', 'delete');
 
   const [form, setForm] = useState(() => blank());
   const [editingId, setEditingId] = useState(null);
@@ -56,8 +59,8 @@ export default function Transport() {
   async function submit(e) {
     e.preventDefault();
     if (saving) return;
-    if (c.total <= 0) return toast.error('Freight (wazan × rate) ya commission ki raqam likhein.');
-    if (form.paid_via === 'Udhaar' && !form.party_name.trim()) return toast.error('Udhaar ke liye party ka naam likhein.');
+    if (c.total <= 0) return toast.error(T("Freight (wazan × rate) ya commission ki raqam likhein."));
+    if (form.paid_via === 'Udhaar' && !form.party_name.trim()) return toast.error(T("Udhaar ke liye party ka naam likhein."));
     const payload = {
       date: form.date, entry_type: form.entry_type, vehicle_no: form.vehicle_no.trim().toUpperCase(), driver_name: form.driver_name.trim(),
       party_name: form.party_name.trim() ? canonicalName(partyType, form.party_name) : '', from_location: form.from_location.trim(),
@@ -68,8 +71,8 @@ export default function Transport() {
     setSaving(true);
     const res = editingId ? await update(editingId, payload) : await insert(payload);
     setSaving(false);
-    if (res.error) return toast.error('Save nahi hua: ' + friendlyError(res.error));
-    toast.success(res.queued ? 'Offline save — sync baad mein hogi.' : 'Transport entry save ho gayi.');
+    if (res.error) return toast.error(T("Save nahi hua: ") + friendlyError(res.error));
+    toast.success(res.queued ? T("Offline save — sync baad mein hogi.") : T("Transport entry save ho gayi."));
     setEditingId(null);
     setForm(blank(form));
   }
@@ -83,57 +86,57 @@ export default function Transport() {
   return (
     <>
       <div className="cardgrid">
-        <StatCard n={rs(sum(filtered, 'freight_amount'))} l="Kul kiraya (freight)" />
-        <StatCard n={rs(sum(filtered, 'commission_amount'))} l="Kul commission" />
-        <StatCard n={rs(sum(filtered.filter((t) => t.paid_via === 'Udhaar'), 'total_amount'))} l="Udhaar (party khata mein)" />
+        <StatCard n={rs(sum(filtered, 'freight_amount'))} l={T("Kul kiraya (freight)")} />
+        <StatCard n={rs(sum(filtered, 'commission_amount'))} l={T("Kul commission")} />
+        <StatCard n={rs(sum(filtered.filter((t) => t.paid_via === 'Udhaar'), 'total_amount'))} l={T("Udhaar (party khata mein)")} />
       </div>
 
-      {writable && (
-        <Panel title={editingId ? 'Transport Entry Edit' : 'Nayi Transport / Commission Entry'}>
+      {(writable || (editingId && canEdit)) && (
+        <Panel title={editingId ? T("Transport Entry Edit") : T("Nayi Transport / Commission Entry")}>
           <form onSubmit={submit}>
             <div className="form-grid">
-              <Field label="Tareekh"><input type="date" value={form.date} onChange={set('date')} required /></Field>
-              <Field label="Qisam"><select value={form.entry_type} onChange={set('entry_type')}>{TRANSPORT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></Field>
-              <Field label={partyType === 'Transporter' ? 'Transporter / goods company' : partyType === 'Arhti' ? 'Arhti ka naam' : 'Broker / dalal'}>
+              <Field label={T("Tareekh")}><input type="date" value={form.date} onChange={set('date')} required /></Field>
+              <Field label={T("Qisam")}><select value={form.entry_type} onChange={set('entry_type')}>{TRANSPORT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></Field>
+              <Field label={partyType === 'Transporter' ? T("Transporter / goods company") : partyType === 'Arhti' ? T("Arhti ka naam") : T("Broker / dalal")}>
                 <PartyInput type={partyType} value={form.party_name} onChange={set('party_name')} required={form.paid_via === 'Udhaar'} />
               </Field>
               {!isCommission && (
                 <>
-                  <Field label="Gaari #"><input value={form.vehicle_no} onChange={set('vehicle_no')} placeholder="e.g. LES-4021" /></Field>
-                  <Field label="Driver"><input value={form.driver_name} onChange={set('driver_name')} /></Field>
-                  <Field label="Kahan se"><input value={form.from_location} onChange={set('from_location')} /></Field>
-                  <Field label="Kahan tak"><input value={form.to_location} onChange={set('to_location')} /></Field>
-                  <Field label="Saman"><input value={form.item} onChange={set('item')} placeholder="e.g. Chawal bags" /></Field>
-                  <Field label="Wazan (kg)"><NumInput value={form.qty_kg} onChange={set('qty_kg')} /></Field>
-                  <Field label="Kiraya rate (Rs/kg)"><NumInput value={form.freight_rate_per_kg} onChange={set('freight_rate_per_kg')} /></Field>
+                  <Field label={T("Gaari #")}><input value={form.vehicle_no} onChange={set('vehicle_no')} placeholder={T("e.g. LES-4021")} /></Field>
+                  <Field label={T("Driver")}><input value={form.driver_name} onChange={set('driver_name')} /></Field>
+                  <Field label={T("Kahan se")}><input value={form.from_location} onChange={set('from_location')} /></Field>
+                  <Field label={T("Kahan tak")}><input value={form.to_location} onChange={set('to_location')} /></Field>
+                  <Field label={T("Saman")}><input value={form.item} onChange={set('item')} placeholder={T("e.g. Chawal bags")} /></Field>
+                  <Field label={T("Wazan (kg)")}><NumInput value={form.qty_kg} onChange={set('qty_kg')} /></Field>
+                  <Field label={T("Kiraya rate (Rs/kg)")}><NumInput value={form.freight_rate_per_kg} onChange={set('freight_rate_per_kg')} /></Field>
                 </>
               )}
-              <Field label="Commission kis raqam par (Rs)"><NumInput value={form.commission_base_amount} onChange={set('commission_base_amount')} /></Field>
-              <Field label="Commission %"><NumInput value={form.commission_pct} onChange={set('commission_pct')} /></Field>
-              <Field label="Adaigi"><select value={form.paid_via} onChange={set('paid_via')}>{PAID_VIA.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select></Field>
-              <Field label="Note" wide><input value={form.notes} onChange={set('notes')} /></Field>
+              <Field label={T("Commission kis raqam par (Rs)")}><NumInput value={form.commission_base_amount} onChange={set('commission_base_amount')} /></Field>
+              <Field label={T("Commission %")}><NumInput value={form.commission_pct} onChange={set('commission_pct')} /></Field>
+              <Field label={T("Adaigi")}><select value={form.paid_via} onChange={set('paid_via')}>{PAID_VIA.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}</select></Field>
+              <Field label={T("Note")} wide><input value={form.notes} onChange={set('notes')} /></Field>
             </div>
-            <div className="calcline">Kiraya: <b>{rs(c.freightAmount)}</b> · Commission: <b>{rs(c.commissionAmount)}</b> · Kul: <b>{rs(c.total)}</b> ({form.paid_via === 'Udhaar' ? 'party ke khata mein jama' : `${form.paid_via} se ada — Rokar mein`})</div>
+            <div className="calcline">{T("Kiraya: ")}<b>{rs(c.freightAmount)}</b>{T(" · Commission: ")}<b>{rs(c.commissionAmount)}</b>{T(" · Kul: ")}<b>{rs(c.total)}</b> ({form.paid_via === 'Udhaar' ? T("party ke khata mein jama") : `${form.paid_via}${T(" se ada — Rokar mein")}`})</div>
             {form.paid_via === 'Udhaar' && <BalanceHint type={partyType} name={form.party_name} />}
-            <FormActions saving={saving} editing={!!editingId} onCancel={() => { setEditingId(null); setForm(blank()); }} saveLabel="Entry Save Karein" />
+            <FormActions saving={saving} editing={!!editingId} onCancel={() => { setEditingId(null); setForm(blank()); }} saveLabel={T("Entry Save Karein")} />
           </form>
         </Panel>
       )}
 
       <Panel
-        title="Transport Register"
+        title={T("Transport Register")}
         action={<>
           <SyncNote lastSynced={lastSynced} offline={offline} error={error} />
           <button type="button" className="btn small" onClick={() => exportCSV('transport.csv', ['Date', 'Type', 'Party', 'Vehicle', 'Driver', 'From', 'To', 'Item', 'Kg', 'Rate', 'Freight', 'CommBase', 'Comm%', 'Commission', 'Total', 'PaidVia', 'Notes'],
-            filtered.map((t) => [t.date, t.entry_type, t.party_name, t.vehicle_no, t.driver_name, t.from_location, t.to_location, t.item, t.qty_kg, t.freight_rate_per_kg, t.freight_amount, t.commission_base_amount, t.commission_pct, t.commission_amount, t.total_amount, t.paid_via, t.notes]))}>Export CSV</button>
+            filtered.map((t) => [t.date, t.entry_type, t.party_name, t.vehicle_no, t.driver_name, t.from_location, t.to_location, t.item, t.qty_kg, t.freight_rate_per_kg, t.freight_amount, t.commission_base_amount, t.commission_pct, t.commission_amount, t.total_amount, t.paid_via, t.notes]))}>{T("Export CSV")}</button>
         </>}
       >
-        <DateRangeBar range={range}><SearchBox value={q} onChange={setQ} placeholder="Gaari, party, route…" /></DateRangeBar>
+        <DateRangeBar range={range}><SearchBox value={q} onChange={setQ} placeholder={T("Gaari, party, route…")} /></DateRangeBar>
         <div className="tablewrap">
           <table className="data">
-            <thead><tr><th>Date</th><th>Qisam</th><th>Party / Gaari</th><th>Route</th><th className="r">Kg</th><th className="r">Kiraya</th><th className="r">Commission</th><th>Adaigi</th><th></th></tr></thead>
+            <thead><tr><th>{T("Date")}</th><th>{T("Qisam")}</th><th>{T("Party / Gaari")}</th><th>{T("Route")}</th><th className="r">{T("Kg")}</th><th className="r">{T("Kiraya")}</th><th className="r">{T("Commission")}</th><th>{T("Adaigi")}</th><th></th></tr></thead>
             <tbody>
-              {loading && !rows.length ? <Empty colSpan={9} text="Loading…" /> : visible.length ? visible.map((t) => (
+              {loading && !rows.length ? <Empty colSpan={9} text={T("Loading…")} /> : visible.length ? visible.map((t) => (
                 <tr key={t.id}>
                   <td>{fmtDate(t.date)} {t._pending && <PendingTag />}</td>
                   <td>{t.entry_type}</td>
@@ -143,9 +146,9 @@ export default function Transport() {
                   <td className="r">{rs(t.freight_amount)}</td>
                   <td className="r">{Number(t.commission_amount) ? rs(t.commission_amount) : '—'}</td>
                   <td><Badge kind={t.paid_via === 'Udhaar' ? 'pos' : 'zero'}>{t.paid_via}</Badge></td>
-                  <td><RowActions onEdit={writable ? () => { setEditingId(t.id); setForm(toForm(t)); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null} onDelete={writable ? () => del(t) : null} /></td>
+                  <td><RowActions onEdit={canEdit ? () => { setEditingId(t.id); setForm(toForm(t)); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null} onDelete={canDel ? () => del(t) : null} /></td>
                 </tr>
-              )) : <Empty colSpan={9} text="Is muddat mein koi entry nahi." />}
+              )) : <Empty colSpan={9} text={T("Is muddat mein koi entry nahi.")} />}
             </tbody>
           </table>
         </div>

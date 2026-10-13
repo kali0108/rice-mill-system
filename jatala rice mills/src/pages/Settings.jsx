@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { friendlyError } from '../lib/errors';
 import { num } from '../lib/calc';
 import { Panel, Field, NumInput } from '../components/ui';
+import { T } from '../lib/i18n';
 
 const FIELDS = ['mill_name', 'address', 'phone', 'ntn', 'strn', 'season_start', 'fumigation_days', 'ageing_days', 'invoice_prefix', 'slip_prefix', 'invoice_footer', 'lock_date', 'moisture_base_pct', 'moisture_kg_per_point'];
 
@@ -19,7 +20,7 @@ export default function Settings() {
     }
   }, [loading, settings, form]);
 
-  if (!form) return <div className="empty">Loading…</div>;
+  if (!form) return <div className="empty">{T("Loading…")}</div>;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   async function submit(e) {
@@ -35,49 +36,45 @@ export default function Settings() {
     });
     setSaving(false);
     if (res.error) return toast.error(friendlyError(res.error));
-    toast.success('Settings save ho gayin.');
+    toast.success(T("Settings save ho gayin."));
   }
 
   return (
     <form onSubmit={submit}>
-      <Panel title="Mill ki maloomat (slip, invoice aur statement par chhapti hai)">
+      <Panel title={T("Mill ki maloomat (slip, invoice aur statement par chhapti hai)")}>
         <div className="form-grid">
-          <Field label="Mill ka naam" wide><input value={form.mill_name} onChange={set('mill_name')} required /></Field>
-          <Field label="Pata (Address)" wide><input value={form.address} onChange={set('address')} /></Field>
-          <Field label="Phone"><input value={form.phone} onChange={set('phone')} /></Field>
-          <Field label="NTN"><input value={form.ntn} onChange={set('ntn')} /></Field>
-          <Field label="STRN (sales tax)"><input value={form.strn} onChange={set('strn')} /></Field>
-          <Field label="Invoice ke neeche note" wide><input value={form.invoice_footer} onChange={set('invoice_footer')} placeholder="e.g. Maal check kar ke wasool karein. Shukriya!" /></Field>
+          <Field label={T("Mill ka naam")} wide><input value={form.mill_name} onChange={set('mill_name')} required /></Field>
+          <Field label={T("Pata (Address)")} wide><input value={form.address} onChange={set('address')} /></Field>
+          <Field label={T("Phone")}><input value={form.phone} onChange={set('phone')} /></Field>
+          <Field label={T("NTN")}><input value={form.ntn} onChange={set('ntn')} /></Field>
+          <Field label={T("STRN (sales tax)")}><input value={form.strn} onChange={set('strn')} /></Field>
+          <Field label={T("Invoice ke neeche note")} wide><input value={form.invoice_footer} onChange={set('invoice_footer')} placeholder={T("e.g. Maal check kar ke wasool karein. Shukriya!")} /></Field>
         </div>
       </Panel>
-      <Panel title="Season, alerts aur numbering">
+      <Panel title={T("Season, alerts aur numbering")}>
         <div className="form-grid">
-          <Field label="Season shuru (dashboard ka hisaab)" hint="Khali = shuru se"><input type="date" value={form.season_start} onChange={set('season_start')} /></Field>
-          <Field label="Fumigation har kitne din?"><NumInput step="1" min="1" value={form.fumigation_days} onChange={set('fumigation_days')} /></Field>
-          <Field label="Purana stock warning (din)"><NumInput step="1" min="1" value={form.ageing_days} onChange={set('ageing_days')} /></Field>
-          <Field label="Invoice # prefix"><input value={form.invoice_prefix} onChange={set('invoice_prefix')} /></Field>
-          <Field label="Kharid slip # prefix"><input value={form.slip_prefix} onChange={set('slip_prefix')} /></Field>
+          <Field label={T("Season shuru (dashboard ka hisaab)")} hint={T("Khali = shuru se")}><input type="date" value={form.season_start} onChange={set('season_start')} /></Field>
+          <Field label={T("Fumigation har kitne din?")}><NumInput step="1" min="1" value={form.fumigation_days} onChange={set('fumigation_days')} /></Field>
+          <Field label={T("Purana stock warning (din)")}><NumInput step="1" min="1" value={form.ageing_days} onChange={set('ageing_days')} /></Field>
+          <Field label={T("Invoice # prefix")}><input value={form.invoice_prefix} onChange={set('invoice_prefix')} /></Field>
+          <Field label={T("Kharid slip # prefix")}><input value={form.slip_prefix} onChange={set('slip_prefix')} /></Field>
         </div>
-        <div className="note">Prefix badalne se sirf naye number badalte hain (e.g. INV-2026-00001). Purane number wese hi rehte hain.</div>
+        <div className="note">{T("Prefix badalne se sirf naye number badalte hain (e.g. INV-2026-00001). Purane number wese hi rehte hain.")}</div>
       </Panel>
-      <Panel title="Namee (moisture) katoti ka rule">
+      <Panel title={T("Namee (moisture) katoti ka rule")}>
         <div className="form-grid">
-          <Field label="Is moisture % tak koi katoti nahi" hint="e.g. 14 · 0 = rule band"><NumInput value={form.moisture_base_pct} onChange={set('moisture_base_pct')} /></Field>
-          <Field label="Har 1% zyada par katoti (kg fi maund)" hint="e.g. 1"><NumInput value={form.moisture_kg_per_point} onChange={set('moisture_kg_per_point')} /></Field>
+          <Field label={T("Is moisture % tak koi katoti nahi")} hint={T("e.g. 14 · 0 = rule band")}><NumInput value={form.moisture_base_pct} onChange={set('moisture_base_pct')} /></Field>
+          <Field label={T("Har 1% zyada par katoti (kg fi maund)")} hint="e.g. 1"><NumInput value={form.moisture_kg_per_point} onChange={set('moisture_kg_per_point')} /></Field>
         </div>
-        <div className="note">Kharid form mein moisture % likhte hi is rule se katoti ka mashwara aata hai — munshi ek click se laga sakta hai (ya badal sakta hai).</div>
+        <div className="note">{T("Kharid form mein moisture % likhte hi is rule se katoti ka mashwara aata hai — munshi ek click se laga sakta hai (ya badal sakta hai).")}</div>
       </Panel>
-      <Panel title="Hisaab band karna (Period lock)">
+      <Panel title={T("Hisaab band karna (Period lock)")}>
         <div className="form-grid">
-          <Field label="Is tareekh tak hisaab band (lock)" hint="Khali = koi lock nahi"><input type="date" value={form.lock_date} onChange={set('lock_date')} /></Field>
+          <Field label={T("Is tareekh tak hisaab band (lock)")} hint={T("Khali = koi lock nahi")}><input type="date" value={form.lock_date} onChange={set('lock_date')} /></Field>
         </div>
-        <div className="note">
-          Mahina/saal band karne ke baad yahan us ki aakhri tareekh daal dein — us tareekh tak ki kharid, sale, payment, khata, kharche,
-          production, mazdoori wagaira <b>koi bhi</b> (Owner samet) na nayi daal sakega, na badal ya mita sakega. Purane cheque ka clear/bounce
-          aur purani mazdoori ki adaigi phir bhi ho sakti hai. Ghalti theek karni ho to Owner lock ki tareekh peeche kar de.
-        </div>
+        <div className="note">{T("Mahina/saal band karne ke baad yahan us ki aakhri tareekh daal dein — us tareekh tak ki kharid, sale, payment, khata, kharche, production, mazdoori wagaira ")}<b>{T("koi bhi")}</b>{T(" (Owner samet) na nayi daal sakega, na badal ya mita sakega. Purane cheque ka clear/bounce aur purani mazdoori ki adaigi phir bhi ho sakti hai. Ghalti theek karni ho to Owner lock ki tareekh peeche kar de.")}</div>
       </Panel>
-      <button type="submit" className="btn primary" disabled={saving}>{saving ? 'Saving…' : 'Settings Save Karein'}</button>
+      <button type="submit" className="btn primary" disabled={saving}>{saving ? T("Saving…") : T("Settings Save Karein")}</button>
     </form>
   );
 }

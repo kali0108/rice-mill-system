@@ -1,4 +1,4 @@
-/* Kanta Khata service worker — generated at build time from src/sw-template.js.
+/* Jatala Rice Mills service worker — generated at build time from src/sw-template.js.
  * - Pre-caches every built file so the app opens with no internet.
  * - Page navigations: network first (always get the newest deploy when
  *   online), fall back to the cached app shell when offline.

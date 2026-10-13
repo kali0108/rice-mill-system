@@ -5,13 +5,14 @@ import { useDateRange } from '../hooks/useDateRange';
 import { useAuth } from '../context/AuthContext';
 import { useParties } from '../context/DataContext';
 import { useToast } from '../context/ToastContext';
-import { canWrite } from '../lib/roles';
+import { can } from '../lib/roles';
 import { taxCalc, zakatCalc, num, rs, sum, r2 } from '../lib/calc';
 import { todayStr, fmtDate } from '../lib/dates';
 import { TAX_TYPES } from '../lib/constants';
 import { exportCSV } from '../lib/csv';
 import { friendlyError } from '../lib/errors';
 import { Panel, Field, NumInput, DateRangeBar, Empty, PendingTag, Badge, StatCard, FormActions, RowActions, confirmDelete } from '../components/ui';
+import { T } from '../lib/i18n';
 
 const blankTax = () => ({ date: todayStr(), tax_type: 'Sales Tax/GST', reference: '', taxable_amount: '', tax_pct: '', status: 'Pending', notes: '' });
 const blankZakat = () => ({ assessment_date: todayStr(), cash_in_hand: '', bank_balance: '', stock_value: '', receivables: '', payables: '', nisab_threshold: '', paid_amount: '', paid_date: '', notes: '' });
@@ -26,8 +27,12 @@ export default function Tax() {
   const { balances } = useParties();
   const { profile } = useAuth();
   const toast = useToast();
-  const writableTax = canWrite(profile, 'tax');
-  const writableZakat = canWrite(profile, 'zakat');
+  const writableTax = can(profile, 'tax', 'add');
+  const editTax = can(profile, 'tax', 'edit');
+  const delTax = can(profile, 'tax', 'delete');
+  const writableZakat = can(profile, 'zakat', 'add');
+  const editZakat = can(profile, 'zakat', 'edit');
+  const delZakat = can(profile, 'zakat', 'delete');
 
   const [tForm, setTForm] = useState(blankTax);
   const [tEditing, setTEditing] = useState(null);
@@ -54,7 +59,7 @@ export default function Tax() {
       ...f, cash_in_hand: String(Math.max(c.Cash, 0)), bank_balance: String(Math.max(c.Bank, 0)), receivables: String(recv),
       payables: String(pay), stock_value: stockValue ? String(stockValue) : f.stock_value,
     }));
-    toast.info('Cash, bank, lene aur dene wali raqam system se bhar di gayi. Stock value rates se — check kar lein.');
+    toast.info(T("Cash, bank, lene aur dene wali raqam system se bhar di gayi. Stock value rates se — check kar lein."));
   }
 
   async function saveTax(e) {
@@ -67,8 +72,8 @@ export default function Tax() {
     setSaving(true);
     const res = tEditing ? await tax.update(tEditing, payload) : await tax.insert(payload);
     setSaving(false);
-    if (res.error) return toast.error('Save nahi hua: ' + friendlyError(res.error));
-    toast.success('Tax record save ho gaya.');
+    if (res.error) return toast.error(T("Save nahi hua: ") + friendlyError(res.error));
+    toast.success(T("Tax record save ho gaya."));
     setTEditing(null);
     setTForm(blankTax());
   }
@@ -76,7 +81,7 @@ export default function Tax() {
   async function saveZakat(e) {
     e.preventDefault();
     if (saving) return;
-    if (num(zForm.nisab_threshold) <= 0) return toast.error('Nisab ki raqam likhein (apne aalim / bank se aaj ka nisab maloom karein).');
+    if (num(zForm.nisab_threshold) <= 0) return toast.error(T("Nisab ki raqam likhein (apne aalim / bank se aaj ka nisab maloom karein)."));
     const payload = {
       assessment_date: zForm.assessment_date, cash_in_hand: num(zForm.cash_in_hand), bank_balance: num(zForm.bank_balance),
       stock_value: num(zForm.stock_value), receivables: num(zForm.receivables), payables: num(zForm.payables),
@@ -86,8 +91,8 @@ export default function Tax() {
     setSaving(true);
     const res = zEditing ? await zakat.update(zEditing, payload) : await zakat.insert(payload);
     setSaving(false);
-    if (res.error) return toast.error('Save nahi hua: ' + friendlyError(res.error));
-    toast.success('Zakat assessment save ho gaya.');
+    if (res.error) return toast.error(T("Save nahi hua: ") + friendlyError(res.error));
+    toast.success(T("Zakat assessment save ho gaya."));
     setZEditing(null);
     setZForm(blankZakat());
   }
@@ -103,34 +108,34 @@ export default function Tax() {
   return (
     <>
       <div className="cardgrid">
-        <StatCard n={rs(gst)} l="Sales tax / GST (sale bills, is muddat)" />
-        <StatCard n={rs(taxable)} l="Taxable sale (is muddat)" />
-        <StatCard n={rs(pending)} l="Tax pending (records)" warn={pending > 0} />
+        <StatCard n={rs(gst)} l={T("Sales tax / GST (sale bills, is muddat)")} />
+        <StatCard n={rs(taxable)} l={T("Taxable sale (is muddat)")} />
+        <StatCard n={rs(pending)} l={T("Tax pending (records)")} warn={pending > 0} />
       </div>
 
-      {writableTax && (
-        <Panel title={tEditing ? 'Tax Record Edit' : 'Tax Record (GST / Withholding / Advance tax / Market fee)'}>
+      {(writableTax || (tEditing && editTax)) && (
+        <Panel title={tEditing ? T("Tax Record Edit") : T("Tax Record (GST / Withholding / Advance tax / Market fee)")}>
           <form onSubmit={saveTax}>
             <div className="form-grid">
-              <Field label="Tareekh"><input type="date" value={tForm.date} onChange={setT('date')} required /></Field>
-              <Field label="Qisam"><select value={tForm.tax_type} onChange={setT('tax_type')}>{TAX_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></Field>
-              <Field label="Reference (period / challan #)"><input value={tForm.reference} onChange={setT('reference')} /></Field>
-              <Field label="Taxable raqam (Rs)"><NumInput value={tForm.taxable_amount} onChange={setT('taxable_amount')} required /></Field>
-              <Field label="Tax %"><NumInput value={tForm.tax_pct} onChange={setT('tax_pct')} required /></Field>
-              <Field label="Status"><select value={tForm.status} onChange={setT('status')}><option value="Pending">Pending</option><option value="Filed">Filed (return jama)</option><option value="Paid">Paid (ada)</option></select></Field>
-              <Field label="Note" wide><input value={tForm.notes} onChange={setT('notes')} /></Field>
+              <Field label={T("Tareekh")}><input type="date" value={tForm.date} onChange={setT('date')} required /></Field>
+              <Field label={T("Qisam")}><select value={tForm.tax_type} onChange={setT('tax_type')}>{TAX_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></Field>
+              <Field label={T("Reference (period / challan #)")}><input value={tForm.reference} onChange={setT('reference')} /></Field>
+              <Field label={T("Taxable raqam (Rs)")}><NumInput value={tForm.taxable_amount} onChange={setT('taxable_amount')} required /></Field>
+              <Field label={T("Tax %")}><NumInput value={tForm.tax_pct} onChange={setT('tax_pct')} required /></Field>
+              <Field label={T("Status")}><select value={tForm.status} onChange={setT('status')}><option value="Pending">{T("Pending")}</option><option value="Filed">{T("Filed (return jama)")}</option><option value="Paid">{T("Paid (ada)")}</option></select></Field>
+              <Field label={T("Note")} wide><input value={tForm.notes} onChange={setT('notes')} /></Field>
             </div>
-            <div className="calcline">Tax: <b>{rs(taxCalc(tForm).taxAmount)}</b></div>
-            <FormActions saving={saving} editing={!!tEditing} onCancel={() => { setTEditing(null); setTForm(blankTax()); }} saveLabel="Record Save" />
+            <div className="calcline">{T("Tax: ")}<b>{rs(taxCalc(tForm).taxAmount)}</b></div>
+            <FormActions saving={saving} editing={!!tEditing} onCancel={() => { setTEditing(null); setTForm(blankTax()); }} saveLabel={T("Record Save")} />
           </form>
         </Panel>
       )}
 
-      <Panel title="Tax Records" action={<button type="button" className="btn small" onClick={() => exportCSV('tax_records.csv', ['Date', 'Type', 'Reference', 'Taxable', 'Tax%', 'Tax', 'Status', 'Notes'], tax.rows.map((r) => [r.date, r.tax_type, r.reference, r.taxable_amount, r.tax_pct, r.tax_amount, r.status, r.notes]))}>Export CSV</button>}>
+      <Panel title={T("Tax Records")} action={<button type="button" className="btn small" onClick={() => exportCSV('tax_records.csv', ['Date', 'Type', 'Reference', 'Taxable', 'Tax%', 'Tax', 'Status', 'Notes'], tax.rows.map((r) => [r.date, r.tax_type, r.reference, r.taxable_amount, r.tax_pct, r.tax_amount, r.status, r.notes]))}>{T("Export CSV")}</button>}>
         <DateRangeBar range={range} />
         <div className="tablewrap">
           <table className="data">
-            <thead><tr><th>Date</th><th>Qisam</th><th>Reference</th><th className="r">Taxable</th><th className="r">%</th><th className="r">Tax</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>{T("Date")}</th><th>{T("Qisam")}</th><th>{T("Reference")}</th><th className="r">{T("Taxable")}</th><th className="r">%</th><th className="r">{T("Tax")}</th><th>{T("Status")}</th><th></th></tr></thead>
             <tbody>
               {tax.rows.length ? tax.rows.map((r) => (
                 <tr key={r.id}>
@@ -139,29 +144,26 @@ export default function Tax() {
                   <td><Badge kind={r.status === 'Pending' ? 'pending' : 'cleared'}>{r.status}</Badge></td>
                   <td>
                     <RowActions
-                      onEdit={writableTax ? () => { setTEditing(r.id); setTForm({ date: r.date, tax_type: r.tax_type, reference: r.reference || '', taxable_amount: String(r.taxable_amount), tax_pct: String(r.tax_pct), status: r.status, notes: r.notes || '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null}
-                      onDelete={writableTax ? () => del(tax, r, `${r.tax_type} ${rs(r.tax_amount)}`) : null}
+                      onEdit={editTax ? () => { setTEditing(r.id); setTForm({ date: r.date, tax_type: r.tax_type, reference: r.reference || '', taxable_amount: String(r.taxable_amount), tax_pct: String(r.tax_pct), status: r.status, notes: r.notes || '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null}
+                      onDelete={delTax ? () => del(tax, r, `${r.tax_type} ${rs(r.tax_amount)}`) : null}
                     />
                   </td>
                 </tr>
-              )) : <Empty colSpan={8} text="Is muddat mein koi tax record nahi." />}
+              )) : <Empty colSpan={8} text={T("Is muddat mein koi tax record nahi.")} />}
             </tbody>
           </table>
         </div>
       </Panel>
 
-      {writableZakat && (
-        <Panel title={zEditing ? 'Zakat Assessment Edit' : 'Zakat Assessment (aasaan hisaab)'}>
-          <div className="calcline">
-            Zakatable = Cash + Bank + Stock ki qeemat + Lene wali raqam − Dene wali raqam. Agar yeh Nisab se zyada ho to <b>2.5%</b>.
-            Yeh sirf hisaab ki madad hai, fatwa nahi — nisab aur masail apne mufti / aalim se zaroor confirm karein.
-          </div>
+      {(writableZakat || (zEditing && editZakat)) && (
+        <Panel title={zEditing ? T("Zakat Assessment Edit") : T("Zakat Assessment (aasaan hisaab)")}>
+          <div className="calcline">{T("Zakatable = Cash + Bank + Stock ki qeemat + Lene wali raqam − Dene wali raqam. Agar yeh Nisab se zyada ho to ")}<b>2.5%</b>{T(". Yeh sirf hisaab ki madad hai, fatwa nahi — nisab aur masail apne mufti / aalim se zaroor confirm karein.")}</div>
           {stockLines.length > 0 && (
             <details className="stock-rates">
-              <summary>Stock ki qeemat lagane ke liye rates (optional)</summary>
+              <summary>{T("Stock ki qeemat lagane ke liye rates (optional)")}</summary>
               <div className="form-grid">
                 {stockLines.map((l) => (
-                  <Field key={l.item + '|' + l.variety} label={`${l.item}${l.variety ? ' — ' + l.variety : ''} (${Math.round(l.balance_kg)} kg) — Rs/kg`}>
+                  <Field key={l.item + '|' + l.variety} label={`${l.item}${l.variety ? ' — ' + l.variety : ''} (${Math.round(l.balance_kg)}${T(" kg) — Rs/kg")}`}>
                     <NumInput value={rates[l.item + '|' + l.variety] || ''} onChange={(e) => setRates((r) => ({ ...r, [l.item + '|' + l.variety]: e.target.value }))} />
                   </Field>
                 ))}
@@ -170,33 +172,33 @@ export default function Tax() {
           )}
           <form onSubmit={saveZakat}>
             <div className="form-grid">
-              <Field label="Tareekh"><input type="date" value={zForm.assessment_date} onChange={setZ('assessment_date')} required /></Field>
-              <Field label="Cash (Rs)"><NumInput value={zForm.cash_in_hand} onChange={setZ('cash_in_hand')} /></Field>
-              <Field label="Bank (Rs)"><NumInput value={zForm.bank_balance} onChange={setZ('bank_balance')} /></Field>
-              <Field label="Stock ki qeemat (Rs)"><NumInput value={zForm.stock_value} onChange={setZ('stock_value')} /></Field>
-              <Field label="Lene wali raqam (Rs)"><NumInput value={zForm.receivables} onChange={setZ('receivables')} /></Field>
-              <Field label="Dene wali raqam (Rs)"><NumInput value={zForm.payables} onChange={setZ('payables')} /></Field>
-              <Field label="Nisab (Rs)"><NumInput value={zForm.nisab_threshold} onChange={setZ('nisab_threshold')} required placeholder="aaj ka nisab" /></Field>
-              <Field label="Ada ki (Rs)"><NumInput value={zForm.paid_amount} onChange={setZ('paid_amount')} /></Field>
-              <Field label="Ada ki tareekh"><input type="date" value={zForm.paid_date} onChange={setZ('paid_date')} /></Field>
-              <Field label="Note" wide><input value={zForm.notes} onChange={setZ('notes')} /></Field>
+              <Field label={T("Tareekh")}><input type="date" value={zForm.assessment_date} onChange={setZ('assessment_date')} required /></Field>
+              <Field label={T("Cash (Rs)")}><NumInput value={zForm.cash_in_hand} onChange={setZ('cash_in_hand')} /></Field>
+              <Field label={T("Bank (Rs)")}><NumInput value={zForm.bank_balance} onChange={setZ('bank_balance')} /></Field>
+              <Field label={T("Stock ki qeemat (Rs)")}><NumInput value={zForm.stock_value} onChange={setZ('stock_value')} /></Field>
+              <Field label={T("Lene wali raqam (Rs)")}><NumInput value={zForm.receivables} onChange={setZ('receivables')} /></Field>
+              <Field label={T("Dene wali raqam (Rs)")}><NumInput value={zForm.payables} onChange={setZ('payables')} /></Field>
+              <Field label={T("Nisab (Rs)")}><NumInput value={zForm.nisab_threshold} onChange={setZ('nisab_threshold')} required placeholder={T("aaj ka nisab")} /></Field>
+              <Field label={T("Ada ki (Rs)")}><NumInput value={zForm.paid_amount} onChange={setZ('paid_amount')} /></Field>
+              <Field label={T("Ada ki tareekh")}><input type="date" value={zForm.paid_date} onChange={setZ('paid_date')} /></Field>
+              <Field label={T("Note")} wide><input value={zForm.notes} onChange={setZ('notes')} /></Field>
             </div>
-            <div className="calcline">Zakatable: <b>{rs(zPreview.zakatable)}</b> · Zakat (2.5%): <b>{rs(zPreview.due)}</b></div>
+            <div className="calcline">{T("Zakatable: ")}<b>{rs(zPreview.zakatable)}</b>{T(" · Zakat (2.5%): ")}<b>{rs(zPreview.due)}</b></div>
             <FormActions
               saving={saving}
               editing={!!zEditing}
               onCancel={() => { setZEditing(null); setZForm(blankZakat()); }}
-              saveLabel="Assessment Save"
-              extra={<button type="button" className="btn" onClick={fillFromSystem}>System se bharein</button>}
+              saveLabel={T("Assessment Save")}
+              extra={<button type="button" className="btn" onClick={fillFromSystem}>{T("System se bharein")}</button>}
             />
           </form>
         </Panel>
       )}
 
-      <Panel title="Zakat History">
+      <Panel title={T("Zakat History")}>
         <div className="tablewrap">
           <table className="data">
-            <thead><tr><th>Date</th><th className="r">Zakatable</th><th className="r">Zakat</th><th className="r">Ada</th><th>Ada ki tareekh</th><th className="r">Baqi</th><th></th></tr></thead>
+            <thead><tr><th>{T("Date")}</th><th className="r">{T("Zakatable")}</th><th className="r">{T("Zakat")}</th><th className="r">{T("Ada")}</th><th>{T("Ada ki tareekh")}</th><th className="r">{T("Baqi")}</th><th></th></tr></thead>
             <tbody>
               {zakat.rows.length ? zakat.rows.map((z) => (
                 <tr key={z.id}>
@@ -206,16 +208,16 @@ export default function Tax() {
                   <td className="r">{rs(Math.max(Number(z.zakat_due) - Number(z.paid_amount || 0), 0))}</td>
                   <td>
                     <RowActions
-                      onEdit={writableZakat ? () => { setZEditing(z.id); setZForm({ assessment_date: z.assessment_date, cash_in_hand: s(z.cash_in_hand), bank_balance: s(z.bank_balance), stock_value: s(z.stock_value), receivables: s(z.receivables), payables: s(z.payables), nisab_threshold: s(z.nisab_threshold), paid_amount: s(z.paid_amount), paid_date: z.paid_date || '', notes: z.notes || '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null}
-                      onDelete={writableZakat ? () => del(zakat, z, `Zakat ${fmtDate(z.assessment_date)}`) : null}
+                      onEdit={editZakat ? () => { setZEditing(z.id); setZForm({ assessment_date: z.assessment_date, cash_in_hand: s(z.cash_in_hand), bank_balance: s(z.bank_balance), stock_value: s(z.stock_value), receivables: s(z.receivables), payables: s(z.payables), nisab_threshold: s(z.nisab_threshold), paid_amount: s(z.paid_amount), paid_date: z.paid_date || '', notes: z.notes || '' }); window.scrollTo({ top: 0, behavior: 'smooth' }); } : null}
+                      onDelete={delZakat ? () => del(zakat, z, `Zakat ${fmtDate(z.assessment_date)}`) : null}
                     />
                   </td>
                 </tr>
-              )) : <Empty colSpan={7} text="Koi zakat assessment nahi." />}
+              )) : <Empty colSpan={7} text={T("Koi zakat assessment nahi.")} />}
             </tbody>
           </table>
         </div>
-        <div className="note">Zakat ki adaigi (raqam + tareekh) Cash Book mein &quot;Zakat adaigi&quot; ke taur par khud darj ho jati hai.</div>
+        <div className="note">{T("Zakat ki adaigi (raqam + tareekh) Cash Book mein \"Zakat adaigi\" ke taur par khud darj ho jati hai.")}</div>
       </Panel>
     </>
   );

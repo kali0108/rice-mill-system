@@ -13,6 +13,7 @@ import { clearLocalData } from '../lib/offline';
 import { clearAllStores } from '../lib/tableStore';
 import { clearAllRpcStores } from '../lib/rpcStore';
 import { Panel, Badge, Field } from '../components/ui';
+import { T } from '../lib/i18n';
 
 async function readTable(table) {
   const orderCol = table === 'settings' ? 'id' : 'created_at';
@@ -83,21 +84,20 @@ function ModuleRow({ table, onStatus }) {
     <>
       <tr>
         <td>{def.label}</td>
-        <td><button type="button" className="btn small" disabled={busy} onClick={handleExport}>Export CSV</button></td>
+        <td><button type="button" className="btn small" disabled={busy} onClick={handleExport}>{T("Export CSV")}</button></td>
         <td><input ref={fileRef} type="file" accept=".csv,text/csv" disabled={busy} onChange={handleFile} /></td>
       </tr>
       {preview && (
         <tr>
           <td colSpan={3}>
             <div className="subpanel">
-              <b>{preview.name}</b>: {preview.rows.length} rows import ke liye tayyar
-              {preview.skipped ? ` · ${preview.skipped} auto khata rows chhor di gayin (woh asal entries se khud bante hain)` : ''}
-              {preview.errors.length ? <div className="auth-error">{preview.errors.slice(0, 8).map((x) => <div key={x}>{x}</div>)}{preview.errors.length > 8 ? <div>… aur {preview.errors.length - 8}</div> : null}</div> : null}
-              <div className="note">Import hamesha <b>nayi</b> entries banata hai — purani ko overwrite nahi karta. Pehle se maujood rows dobara import na karein.</div>
+              <b>{preview.name}</b>: {preview.rows.length}{T(" rows import ke liye tayyar")}{preview.skipped ? ` · ${preview.skipped}${T(" auto khata rows chhor di gayin (woh asal entries se khud bante hain)")}` : ''}
+              {preview.errors.length ? <div className="auth-error">{preview.errors.slice(0, 8).map((x) => <div key={x}>{x}</div>)}{preview.errors.length > 8 ? <div>{T("… aur ")}{preview.errors.length - 8}</div> : null}</div> : null}
+              <div className="note">{T("Import hamesha ")}<b>{T("nayi")}</b>{T(" entries banata hai — purani ko overwrite nahi karta. Pehle se maujood rows dobara import na karein.")}</div>
               <button type="button" className="btn small primary" disabled={busy || !preview.rows.length || preview.errors.length > 0} onClick={doImport}>
-                {busy ? 'Import ho raha hai…' : `${preview.rows.length} rows Import Karein`}
+                {busy ? T("Import ho raha hai…") : `${preview.rows.length}${T(" rows Import Karein")}`}
               </button>{' '}
-              <button type="button" className="btn small" onClick={() => setPreview(null)}>Cancel</button>
+              <button type="button" className="btn small" onClick={() => setPreview(null)}>{T("Cancel")}</button>
             </div>
           </td>
         </tr>
@@ -107,7 +107,7 @@ function ModuleRow({ table, onStatus }) {
 }
 
 export default function ImportExport() {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const toast = useToast();
   const [status, setStatus] = useState({});
   const [backupBusy, setBackupBusy] = useState(false);
@@ -125,14 +125,14 @@ export default function ImportExport() {
       const { data, error } = await readTable(t);
       if (error) {
         setBackupBusy(false);
-        return toast.error(`Backup adhoora — ${t}: ${friendlyError(error)}`);
+        return toast.error(`${T("Backup adhoora — ")}${t}: ${friendlyError(error)}`);
       }
       backup[t] = data;
     }
     setBackupBusy(false);
-    downloadFile(`kanta-khata-backup-${todayStr()}.json`, JSON.stringify(backup), 'application/json');
+    downloadFile(`jatala-rice-mills-backup-${todayStr()}.json`, JSON.stringify(backup), 'application/json');
     const total = BACKUP_TABLES.reduce((s, t) => s + (backup[t]?.length || 0), 0);
-    toast.success(`Backup download ho gaya (${total} rows).`);
+    toast.success(`${T("Backup download ho gaya (")}${total}${T(" rows).")}`);
   }
 
   async function chooseRestore(e) {
@@ -142,27 +142,27 @@ export default function ImportExport() {
     try {
       const data = JSON.parse(await file.text());
       if (!data || typeof data !== 'object' || (!Array.isArray(data.purchases) && !Array.isArray(data.ledger_entries))) {
-        return toast.error('Yeh Kanta Khata ki backup file nahi lagti.');
+        return toast.error(T("Yeh Jatala Rice Mills ki backup file nahi lagti."));
       }
       const counts = Object.fromEntries(BACKUP_TABLES.filter((t) => Array.isArray(data[t])).map((t) => [t, data[t].length]));
       setRestore({ name: file.name, data, counts, exportedAt: data.exported_at });
     } catch {
-      toast.error('File parh nahi saki — yeh sahi JSON backup nahi.');
+      toast.error(T("File parh nahi saki — yeh sahi JSON backup nahi."));
     }
   }
 
   async function doRestore() {
-    if (restoreWord !== 'RESTORE') return toast.error('Confirm ke liye RESTORE likhein.');
-    if (!window.confirm('Aakhri tasdeeq: mojooda saara business data hata kar backup wala data daal diya jayega. Aage barhein?')) return;
+    if (restoreWord !== 'RESTORE') return toast.error(T("Confirm ke liye RESTORE likhein."));
+    if (!window.confirm(T("Aakhri tasdeeq: mojooda saara business data hata kar backup wala data daal diya jayega. Aage barhein?"))) return;
     setRestoreBusy(true);
     const check = await supabase.auth.signInWithPassword({ email: user.email, password: restorePw });
     if (check.error) {
       setRestoreBusy(false);
-      return toast.error('Owner password ghalat hai.');
+      return toast.error(T("Owner password ghalat hai."));
     }
     const { data, error } = await supabase.rpc('owner_restore_backup', { p_data: restore.data });
     setRestoreBusy(false);
-    if (error) return toast.error('Restore nahi hua: ' + friendlyError(error));
+    if (error) return toast.error(T("Restore nahi hua: ") + friendlyError(error));
     clearAllStores();
     clearAllRpcStores();
     await clearLocalData();
@@ -170,21 +170,19 @@ export default function ImportExport() {
     setRestore(null);
     setRestorePw('');
     setRestoreWord('');
-    toast.success('Backup restore ho gaya: ' + Object.entries(data || {}).map(([k, v]) => `${k} ${v}`).join(', '));
+    toast.success(T("Backup restore ho gaya: ") + Object.entries(data || {}).map(([k, v]) => `${k} ${v}`).join(', '));
     setTimeout(() => window.location.reload(), 1500);
   }
 
   return (
     <>
-      <Panel title="Full Backup (JSON)">
-        <div className="note">Ek click mein har module ka poora data (Settings aur Parties samet) ek file mein. Har hafte ek backup Google Drive / USB par rakhein.</div>
-        <button type="button" className="btn primary" disabled={backupBusy} onClick={downloadBackup}>{backupBusy ? 'Tayyar ho raha hai…' : 'Full Backup Download'}</button>
+      <Panel title={T("Full Backup (JSON)")}>
+        <div className="note">{T("Ek click mein har module ka poora data (Settings aur Parties samet) ek file mein. Har hafte ek backup Google Drive / USB par rakhein.")}</div>
+        <button type="button" className="btn primary" disabled={backupBusy} onClick={downloadBackup}>{backupBusy ? T("Tayyar ho raha hai…") : T("Full Backup Download")}</button>
       </Panel>
 
-      <Panel title="Backup se Restore">
-        <div className="calcline" style={{ borderLeft: '3px solid var(--alert)' }}>
-          Restore se <b>mojooda saara business data hat jayega</b> aur backup wala data aa jayega (logins wese hi rahenge). Pehle mojooda data ka backup zaroor le lein.
-        </div>
+      {role === 'owner' && (<Panel title={T("Backup se Restore")}>
+        <div className="calcline" style={{ borderLeft: '3px solid var(--alert)' }}>{T("Restore se ")}<b>{T("mojooda saara business data hat jayega")}</b>{T(" aur backup wala data aa jayega (logins wese hi rahenge). Pehle mojooda data ka backup zaroor le lein.")}</div>
         {!restore ? (
           <input ref={restoreRef} type="file" accept=".json,application/json" onChange={chooseRestore} />
         ) : (
@@ -192,25 +190,23 @@ export default function ImportExport() {
             <div><b>{restore.name}</b>{restore.exportedAt ? ` — ${new Date(restore.exportedAt).toLocaleString()}` : ''}</div>
             <div className="mini-stats">{Object.entries(restore.counts).map(([t, n]) => <span key={t}>{TABLES[t]?.label || t}: {n}</span>)}</div>
             <div className="form-grid">
-              <Field label="Owner password"><input type="password" value={restorePw} onChange={(e) => setRestorePw(e.target.value)} autoComplete="current-password" /></Field>
-              <Field label='Confirm ke liye "RESTORE" likhein'><input value={restoreWord} onChange={(e) => setRestoreWord(e.target.value)} placeholder="RESTORE" /></Field>
+              <Field label={T("Owner password")}><input type="password" value={restorePw} onChange={(e) => setRestorePw(e.target.value)} autoComplete="current-password" /></Field>
+              <Field label={T("Confirm ke liye \"RESTORE\" likhein")}><input value={restoreWord} onChange={(e) => setRestoreWord(e.target.value)} placeholder={T("RESTORE")} /></Field>
             </div>
             <button type="button" className="btn danger-fill" disabled={restoreBusy || restoreWord !== 'RESTORE' || !restorePw} onClick={doRestore}>
-              {restoreBusy ? 'Restore ho raha hai…' : 'Restore Karein'}
+              {restoreBusy ? T("Restore ho raha hai…") : T("Restore Karein")}
             </button>{' '}
-            <button type="button" className="btn" onClick={() => setRestore(null)}>Cancel</button>
+            <button type="button" className="btn" onClick={() => setRestore(null)}>{T("Cancel")}</button>
           </div>
         )}
-      </Panel>
+      </Panel>)}
 
-      <Panel title="Module-wise CSV (Excel)">
+      <Panel title={T("Module-wise CSV (Excel)")}>
         <div className="note">
-          <b>Export</b> se module ka saara data CSV mein (Excel mein khulta hai, Urdu naam samet). <b>Import</b> ke liye wahi columns istemal karein
-          (pehle Export kar ke dekh lein). Tareekh YYYY-MM-DD ya DD/MM/YYYY. Hisaab wale columns (raqam, net weight wagaira) database khud dobara nikalta hai.
-        </div>
+          <b>{T("Export")}</b>{T(" se module ka saara data CSV mein (Excel mein khulta hai, Urdu naam samet). ")}<b>{T("Import")}</b>{T(" ke liye wahi columns istemal karein (pehle Export kar ke dekh lein). Tareekh YYYY-MM-DD ya DD/MM/YYYY. Hisaab wale columns (raqam, net weight wagaira) database khud dobara nikalta hai.")}</div>
         <div className="tablewrap">
           <table className="data">
-            <thead><tr><th>Module</th><th>Export</th><th>Import (CSV)</th></tr></thead>
+            <thead><tr><th>{T("Module")}</th><th>{T("Export")}</th><th>{T("Import (CSV)")}</th></tr></thead>
             <tbody>{Object.keys(TABLES).map((t) => <ModuleRow key={t} table={t} onStatus={onStatus} />)}</tbody>
           </table>
         </div>
@@ -219,7 +215,7 @@ export default function ImportExport() {
             {Object.entries(status).map(([t, s]) => (
               <div className="alertrow" key={t}>
                 <span>{TABLES[t]?.label || t}: {s.message}</span>
-                {s.kind === 'ok' ? <Badge kind="neg">Done</Badge> : s.kind === 'error' ? <Badge kind="bounced">Error</Badge> : <Badge>Info</Badge>}
+                {s.kind === 'ok' ? <Badge kind="neg">{T("Done")}</Badge> : s.kind === 'error' ? <Badge kind="bounced">{T("Error")}</Badge> : <Badge>{T("Info")}</Badge>}
               </div>
             ))}
           </div>

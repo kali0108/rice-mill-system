@@ -5,6 +5,7 @@ import { TABLES } from '../lib/schema';
 import { friendlyError } from '../lib/errors';
 import { useToast } from '../context/ToastContext';
 import { Panel, Badge, Empty, Field } from '../components/ui';
+import { T } from '../lib/i18n';
 
 const PAGE = 60;
 const LABELS = { ...Object.fromEntries(Object.entries(TABLES).map(([k, v]) => [k, v.label])), settings: 'Mill Settings', system: 'System' };
@@ -25,8 +26,8 @@ function summarize(d) {
 }
 
 const ACTION = {
-  INSERT: <Badge kind="neg">Nayi</Badge>, UPDATE: <Badge kind="zero">Tabdeeli</Badge>, DELETE: <Badge kind="bounced">Delete</Badge>,
-  RESET: <Badge kind="bounced">RESET</Badge>, RESTORE: <Badge kind="pending">RESTORE</Badge>,
+  INSERT: <Badge kind="neg">{T("Nayi")}</Badge>, UPDATE: <Badge kind="zero">{T("Tabdeeli")}</Badge>, DELETE: <Badge kind="bounced">{T("Delete")}</Badge>,
+  RESET: <Badge kind="bounced">{T("RESET")}</Badge>, RESTORE: <Badge kind="pending">{T("RESTORE")}</Badge>,
 };
 
 export default function ActivityLog() {
@@ -77,30 +78,30 @@ export default function ActivityLog() {
   }
 
   return (
-    <Panel title="Activity Log — kis ne, kya, kab">
+    <Panel title={T("Activity Log — kis ne, kya, kab")}>
       <div className="filterbar">
-        <Field label="Module">
+        <Field label={T("Module")}>
           <select value={table} onChange={(e) => setTable(e.target.value)}>
-            <option value="all">Sab</option>
+            <option value="all">{T("Sab")}</option>
             {Object.entries(LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        <Field label="Kaam">
+        <Field label={T("Kaam")}>
           <select value={action} onChange={(e) => setAction(e.target.value)}>
-            <option value="all">Sab</option><option value="INSERT">Nayi entry</option><option value="UPDATE">Tabdeeli</option>
-            <option value="DELETE">Delete</option><option value="RESET">Reset</option><option value="RESTORE">Restore</option>
+            <option value="all">{T("Sab")}</option><option value="INSERT">{T("Nayi entry")}</option><option value="UPDATE">{T("Tabdeeli")}</option>
+            <option value="DELETE">{T("Delete")}</option><option value="RESET">{T("Reset")}</option><option value="RESTORE">{T("Restore")}</option>
           </select>
         </Field>
       </div>
       <div className="tablewrap">
         <table className="data">
-          <thead><tr><th>Kab</th><th>Kis ne</th><th>Module</th><th>Kaam</th><th>Tafseel</th><th></th></tr></thead>
+          <thead><tr><th>{T("Kab")}</th><th>{T("Kis ne")}</th><th>{T("Module")}</th><th>{T("Kaam")}</th><th>{T("Tafseel")}</th><th></th></tr></thead>
           <tbody>
             {rows.length ? rows.map((r) => (
               <Fragment key={r.id}>
                 <tr>
                   <td>{fmtDateTime(r.created_at)}</td>
-                  <td>{r.user_id ? names[r.user_id] || 'Purana/delete user' : 'System'}</td>
+                  <td>{r.user_id ? names[r.user_id] || T("Purana/delete user") : T("System")}</td>
                   <td>{LABELS[r.table_name] || r.table_name}</td>
                   <td>{ACTION[r.action] || r.action}</td>
                   <td className="wrap">
@@ -109,25 +110,25 @@ export default function ActivityLog() {
                       <div key={c.k} className="muted">{c.k}: {show(c.from)} → {show(c.to)}</div>
                     ))}
                   </td>
-                  <td><button type="button" className="btn small" onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? 'Band' : 'Poori'}</button></td>
+                  <td><button type="button" className="btn small" onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? T("Band") : T("Poori")}</button></td>
                 </tr>
                 {open === r.id && (
                   <tr><td colSpan={6}>
                     {r.action === 'UPDATE' && r.old_details ? (
                       <table className="data compact">
-                        <thead><tr><th>Khana</th><th>Pehle</th><th>Baad mein</th></tr></thead>
+                        <thead><tr><th>{T("Khana")}</th><th>{T("Pehle")}</th><th>{T("Baad mein")}</th></tr></thead>
                         <tbody>{changes(r.old_details, r.details).map((c) => <tr key={c.k}><td>{c.k}</td><td className="wrap">{show(c.from)}</td><td className="wrap">{show(c.to)}</td></tr>)}</tbody>
                       </table>
                     ) : <pre className="json">{JSON.stringify(r.details, null, 2)}</pre>}
                   </td></tr>
                 )}
               </Fragment>
-            )) : !loading && <Empty colSpan={6} text="Koi activity nahi mili." />}
+            )) : !loading && <Empty colSpan={6} text={T("Koi activity nahi mili.")} />}
           </tbody>
         </table>
       </div>
-      {loading && <div className="note">Loading…</div>}
-      {!loading && hasMore && <button type="button" className="btn small" onClick={more}>Aur dikhayein</button>}
+      {loading && <div className="note">{T("Loading…")}</div>}
+      {!loading && hasMore && <button type="button" className="btn small" onClick={more}>{T("Aur dikhayein")}</button>}
     </Panel>
   );
 }

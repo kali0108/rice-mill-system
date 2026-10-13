@@ -1,4 +1,4 @@
-# Kanta Khata v5 — Deployment Guide (Supabase + Vercel)
+# Jatala Rice Mills v5 — Deployment Guide (Supabase + Vercel)
 
 Do raaste hain:
 - **Part A** — bilkul naya setup (pehli dafa).
@@ -95,8 +95,10 @@ Yeh file ek transaction hai aur **dobara chalana bhi safe hai**.
 
 > Note: v4 mein "Arhti ke zariye" wali kharid hamesha **Kisan** ke khata mein jaati thi. Purani entries wesi hi rehti hain. Nayi entries mein aap form par "Khata kis ke naam?" chun sakte hain (default: Arhti).
 
-> **Pichli kisi bhi v5 zip (v5.0 / v5.1 / v5.2) ki files pehle hi chala chuke hain?** (Naye project par purani `schema.sql`, ya live site par purani `migration_07`.)
-> Ab sirf yeh **naya `migration_07_v5_upgrade.sql`** chalayein — `schema.sql` dobara mat chalayein. Yeh safe hai, kuch nahi mitata, aur naye features (Products & Varieties, Stats, Sauda, Kanta, Export, Hisaab lock, Sukhai, Bardana, Laagat) add kar deta hai.
+> **Pichli kisi bhi v5 zip (v5.0 – v5.3) ki files pehle hi chala chuke hain?** (Naye project par purani `schema.sql`, ya live site par purani `migration_07`.)
+> Ab sirf yeh **naya `migration_07_v5_upgrade.sql`** chalayein — `schema.sql` dobara mat chalayein. Yeh safe hai, kuch nahi mitata, aur naye features (Products & Varieties, Stats, Sauda, Kanta, Export, Hisaab lock, Sukhai, Bardana, Laagat, Manager role, custom permissions, delete options) add kar deta hai — aur Reset wala "DELETE requires a WHERE clause" error bhi theek karta hai.
+
+**Zaroori:** is version ke saath Edge Function `admin-create-user` bhi dobara deploy karein (Manager ko staff banane ki ijazat isi mein hai).
 
 ### B4. Edge Function update
 **Edge Functions → admin-create-user** → code editor mein naya `index.ts` paste → **Deploy**. (Naye features: staff ke login email dikhana, account delete, behtar errors.)

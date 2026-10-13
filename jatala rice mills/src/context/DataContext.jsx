@@ -5,7 +5,7 @@ import { DEFAULT_PRODUCTS, DEFAULT_VARIETIES } from '../lib/constants';
 import { defaultCategory } from '../lib/calc';
 
 export const DEFAULT_SETTINGS = {
-  id: 1, mill_name: 'Rice Mill', address: '', phone: '', ntn: '', strn: '', season_start: null,
+  id: 1, mill_name: 'Jatala Rice Mills', address: '', phone: '', ntn: '', strn: '', season_start: null,
   fumigation_days: 30, ageing_days: 60, invoice_prefix: 'INV-', slip_prefix: 'PS-', invoice_footer: '',
 };
 

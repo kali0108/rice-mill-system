@@ -12,7 +12,7 @@ export function subscribeTable(table, listener) {
       .channel(`kk-${table}-${++topicSeq}`)
       .on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
         listeners.forEach((fn) => {
-          try { fn(payload); } catch (e) { console.error('[Kanta Khata] realtime handler', e); }
+          try { fn(payload); } catch (e) { console.error('[Jatala Rice Mills] realtime handler', e); }
         });
       })
       .subscribe();

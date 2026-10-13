@@ -1,5 +1,5 @@
 -- ============================================================================
--- Kanta Khata — migration for projects that already ran schema.sql v2
+-- Jatala Rice Mills — migration for projects that already ran schema.sql v2
 -- (the version with invited_emails / pending-approval / Activity Log).
 -- If you're setting up a brand-new Supabase project, ignore this file and
 -- just run supabase/schema.sql instead — it already includes everything below.

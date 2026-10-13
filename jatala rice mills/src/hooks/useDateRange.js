@@ -1,15 +1,16 @@
 import { useMemo, useState, useEffect } from 'react';
 import { todayStr, startOfMonth, endOfMonth, startOfWeek, addDays, prevMonthRange } from '../lib/dates';
 import { useSettings } from '../context/DataContext';
+import { T } from '../lib/i18n';
 
 export const PRESETS = [
-  { value: 'today', label: 'Aaj' },
-  { value: 'week', label: 'Is hafta' },
-  { value: 'month', label: 'Is mahina' },
-  { value: 'prev_month', label: 'Pichla mahina' },
-  { value: 'season', label: 'Season' },
-  { value: 'all', label: 'Sab' },
-  { value: 'custom', label: 'Custom' },
+  { value: 'today', label: T("Aaj") },
+  { value: 'week', label: T("Is hafta") },
+  { value: 'month', label: T("Is mahina") },
+  { value: 'prev_month', label: T("Pichla mahina") },
+  { value: 'season', label: T("Season") },
+  { value: 'all', label: T("Sab") },
+  { value: 'custom', label: T("Custom") },
 ];
 
 export function computeRange(state, today, seasonStart) {

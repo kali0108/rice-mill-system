@@ -9,6 +9,7 @@ import { exportCSV } from '../lib/csv';
 import { printTable } from '../lib/print';
 import { Panel, DateRangeBar, Field, StatCard, Loading, Badge, SyncNote } from '../components/ui';
 import { BarChart, LineChart, HBarChart, fmtShort, bucketLabel, PALETTE } from '../components/charts';
+import { T } from '../lib/i18n';
 
 const WATCH_ALL = ['purchases', 'sales', 'production_batches', 'expenses', 'labor_entries', 'machinery_log', 'transport_entries',
   'payments', 'cash_entries', 'zakat_assessments', 'weighments'];
@@ -33,7 +34,7 @@ export default function Analytics() {
   }, [agingRows]);
 
   if (a.loading && !d) return <Loading />;
-  if (!d) return <Panel title="Stats / Analytics"><div className="auth-error">Data load nahi ho saka. {a.error ? a.error.message : ''}</div></Panel>;
+  if (!d) return <Panel title={T("Stats / Analytics")}><div className="auth-error">{T("Data load nahi ho saka. ")}{a.error ? a.error.message : ''}</div></Panel>;
 
   const k = d.kpi;
   const purchaseMd = kgToMaund(k.purchase_kg);
@@ -53,129 +54,129 @@ export default function Analytics() {
 
   function printAging() {
     printTable({
-      title: agingSide === 'receivable' ? 'Wasooli ki umar (Receivables ageing)' : 'Adaigi ki umar (Payables ageing)',
+      title: agingSide === 'receivable' ? T("Wasooli ki umar (Receivables ageing)") : T("Adaigi ki umar (Payables ageing)"),
       subtitle: fmtDate(new Date().toISOString().slice(0, 10)),
-      columns: [{ label: 'Party' }, { label: 'Type' }, { label: 'Kul baqaya', right: true }, { label: '0-30 din', right: true },
-        { label: '31-60', right: true }, { label: '61-90', right: true }, { label: '90+ din', right: true }, { label: 'Sab se purana' }],
+      columns: [{ label: T("Party") }, { label: T("Type") }, { label: T("Kul baqaya"), right: true }, { label: T("0-30 din"), right: true },
+        { label: '31-60', right: true }, { label: '61-90', right: true }, { label: T("90+ din"), right: true }, { label: T("Sab se purana") }],
       rows: agingRows.map((r) => [r.party_name, r.party_type, rs(r.balance), rs(r.d0_30), rs(r.d31_60), rs(r.d61_90), rs(r.d90_plus), fmtDate(r.oldest)]),
-      totals: ['Total', '', rs(agingTotals.balance), rs(agingTotals.d0_30), rs(agingTotals.d31_60), rs(agingTotals.d61_90), rs(agingTotals.d90_plus), ''],
+      totals: [T("Total"), '', rs(agingTotals.balance), rs(agingTotals.d0_30), rs(agingTotals.d31_60), rs(agingTotals.d61_90), rs(agingTotals.d90_plus), ''],
     }, settings);
   }
 
   return (
     <>
       <Panel
-        title="Stats / Analytics"
+        title={T("Stats / Analytics")}
         action={<>
           <SyncNote lastSynced={a.lastSynced} offline={a.offline} error={a.error} />
-          <button type="button" className="btn small" onClick={() => window.print()}>Print</button>
+          <button type="button" className="btn small" onClick={() => window.print()}>{T("Print")}</button>
         </>}
       >
         <DateRangeBar range={range}>
-          <Field label="Graph ka hissa">
+          <Field label={T("Graph ka hissa")}>
             <select value={bucket} onChange={(e) => setBucket(e.target.value)}>
-              <option value="auto">Khud (auto)</option><option value="day">Rozana</option><option value="week">Hafta-war</option><option value="month">Mahana</option>
+              <option value="auto">{T("Khud (auto)")}</option><option value="day">{T("Rozana")}</option><option value="week">{T("Hafta-war")}</option><option value="month">{T("Mahana")}</option>
             </select>
           </Field>
         </DateRangeBar>
-        <div className="note">Muddat: {period}{d.bucket ? ` · graph: ${d.bucket === 'day' ? 'rozana' : d.bucket === 'week' ? 'hafta-war' : 'mahana'}` : ''}</div>
+        <div className="note">{T("Muddat: ")}{period}{d.bucket ? `${T(" · graph: ")}${d.bucket === 'day' ? T("rozana") : d.bucket === 'week' ? T("hafta-war") : T("mahana")}` : ''}</div>
         <div className="cardgrid">
-          <StatCard n={`${fmt(purchaseMd, 0)} md`} l={`Paddy kharid (${fmt(k.purchase_count)} entries) · ${rs(k.purchase_payable)}`} />
-          <StatCard n={rs(avgRate)} l="Ausat paddy rate (fi maund)" />
-          <StatCard n={`${fmt(kgToMaund(k.milled_kg), 0)} md`} l="Paddy milled" />
-          <StatCard n={pct(recovery)} l={`Recovery · head rice ${pct(headRice)}`} good />
-          <StatCard n={rs(k.sale_value)} l={`Sale (tax ke baghair) · ${fmt(kgToMaund(k.sale_kg), 0)} md`} />
-          <StatCard n={rs(k.expenses)} l="Kharche (mazdoori, rozana, machine, transport)" />
-          <StatCard n={rs(margin)} l="Sale − kharid − kharche (stock ke baghair)" warn={margin < 0} good={margin > 0} />
-          <StatCard n={rs(k.cash_in - k.cash_out)} l={`Cash/Bank: aamad ${fmtShort(k.cash_in)} · kharch ${fmtShort(k.cash_out)}`} warn={k.cash_in - k.cash_out < 0} />
+          <StatCard n={`${fmt(purchaseMd, 0)}${T(" md")}`} l={`${T("Paddy kharid (")}${fmt(k.purchase_count)}${T(" entries) · ")}${rs(k.purchase_payable)}`} />
+          <StatCard n={rs(avgRate)} l={T("Ausat paddy rate (fi maund)")} />
+          <StatCard n={`${fmt(kgToMaund(k.milled_kg), 0)}${T(" md")}`} l={T("Paddy milled")} />
+          <StatCard n={pct(recovery)} l={`${T("Recovery · head rice ")}${pct(headRice)}`} good />
+          <StatCard n={rs(k.sale_value)} l={`${T("Sale (tax ke baghair) · ")}${fmt(kgToMaund(k.sale_kg), 0)}${T(" md")}`} />
+          <StatCard n={rs(k.expenses)} l={T("Kharche (mazdoori, rozana, machine, transport)")} />
+          <StatCard n={rs(margin)} l={T("Sale − kharid − kharche (stock ke baghair)")} warn={margin < 0} good={margin > 0} />
+          <StatCard n={rs(k.cash_in - k.cash_out)} l={`${T("Cash/Bank: aamad ")}${fmtShort(k.cash_in)}${T(" · kharch ")}${fmtShort(k.cash_out)}`} warn={k.cash_in - k.cash_out < 0} />
         </div>
       </Panel>
 
       <div className="chart-grid">
-        <Panel title="Kharid vs Sale (Rs)">
+        <Panel title={T("Kharid vs Sale (Rs)")}>
           <BarChart labels={labels} series={[
-            { name: 'Kharid (kul raqam)', values: col('purchase_payable'), color: PALETTE[1] },
-            { name: 'Sale (tax ke baghair)', values: col('sale_value'), color: PALETTE[0] },
+            { name: T("Kharid (kul raqam)"), values: col('purchase_payable'), color: PALETTE[1] },
+            { name: T("Sale (tax ke baghair)"), values: col('sale_value'), color: PALETTE[0] },
           ]} />
         </Panel>
-        <Panel title="Paddy aamad vs Milling (maund)">
+        <Panel title={T("Paddy aamad vs Milling (maund)")}>
           <BarChart labels={labels} format={(v) => fmtShort(v)} series={[
-            { name: 'Paddy aamad', values: col('purchase_kg', kgToMaund), color: PALETTE[4] },
-            { name: 'Milled', values: col('milled_kg', kgToMaund), color: PALETTE[2] },
+            { name: T("Paddy aamad"), values: col('purchase_kg', kgToMaund), color: PALETTE[4] },
+            { name: T("Milled"), values: col('milled_kg', kgToMaund), color: PALETTE[2] },
           ]} />
         </Panel>
-        <Panel title="Recovery % trend">
+        <Panel title={T("Recovery % trend")}>
           <LineChart labels={labels} format={(v) => `${Number(v).toFixed(0)}%`} series={[
-            { name: 'Recovery (chawal + toota)', values: recoverySeries, color: PALETTE[2] },
-            { name: 'Head rice', values: headSeries, color: PALETTE[1] },
+            { name: T("Recovery (chawal + toota)"), values: recoverySeries, color: PALETTE[2] },
+            { name: T("Head rice"), values: headSeries, color: PALETTE[1] },
           ]} />
         </Panel>
-        <Panel title="Paddy rate (Rs / maund) — variety-wise">
+        <Panel title={T("Paddy rate (Rs / maund) — variety-wise")}>
           <LineChart labels={rateLabels} series={rateSeries} minZero={false} format={(v) => fmt(v, 0)} />
         </Panel>
-        <Panel title="Cash / Bank — aamad vs kharch">
+        <Panel title={T("Cash / Bank — aamad vs kharch")}>
           <BarChart labels={labels} series={[
-            { name: 'Aamad', values: col('cash_in'), color: PALETTE[2] },
-            { name: 'Kharch', values: col('cash_out'), color: PALETTE[3] },
+            { name: T("Aamad"), values: col('cash_in'), color: PALETTE[2] },
+            { name: T("Kharch"), values: col('cash_out'), color: PALETTE[3] },
           ]} />
         </Panel>
-        <Panel title="Kharche — category-wise">
-          <HBarChart items={d.expenses_by_category.map((x) => ({ label: x.name, value: Number(x.value) }))} color={PALETTE[3]} empty="Is muddat mein kharche nahi." />
+        <Panel title={T("Kharche — category-wise")}>
+          <HBarChart items={d.expenses_by_category.map((x) => ({ label: x.name, value: Number(x.value) }))} color={PALETTE[3]} empty={T("Is muddat mein kharche nahi.")} />
         </Panel>
-        <Panel title="Variety mix (paddy kharid)">
-          <HBarChart items={d.variety_mix.map((x) => ({ label: x.name, value: kgToMaund(x.kg), sub: x.rate ? `${rs(x.rate)}/md` : '' }))} format={(v) => `${fmt(v, 0)} md`} color={PALETTE[4]} empty="Is muddat mein kharid nahi." />
+        <Panel title={T("Variety mix (paddy kharid)")}>
+          <HBarChart items={d.variety_mix.map((x) => ({ label: x.name, value: kgToMaund(x.kg), sub: x.rate ? `${rs(x.rate)}/md` : '' }))} format={(v) => `${fmt(v, 0)} md`} color={PALETTE[4]} empty={T("Is muddat mein kharid nahi.")} />
         </Panel>
-        <Panel title="Sale — item-wise">
-          <HBarChart items={d.sales_by_item.map((x) => ({ label: x.name, value: Number(x.value), sub: x.per_kg ? `${rs(x.per_kg)}/kg` : '' }))} color={PALETTE[0]} empty="Is muddat mein sale nahi." />
+        <Panel title={T("Sale — item-wise")}>
+          <HBarChart items={d.sales_by_item.map((x) => ({ label: x.name, value: Number(x.value), sub: x.per_kg ? `${rs(x.per_kg)}/kg` : '' }))} color={PALETTE[0]} empty={T("Is muddat mein sale nahi.")} />
         </Panel>
-        <Panel title="Top 10 suppliers (Kisan / Arhti)">
-          <HBarChart items={d.top_suppliers.map((x) => ({ label: x.name, value: Number(x.value), sub: `${x.type} · ${fmt(kgToMaund(x.kg), 0)} md` }))} color={PALETTE[1]} empty="Koi kharid nahi." />
+        <Panel title={T("Top 10 suppliers (Kisan / Arhti)")}>
+          <HBarChart items={d.top_suppliers.map((x) => ({ label: x.name, value: Number(x.value), sub: `${x.type} · ${fmt(kgToMaund(x.kg), 0)} md` }))} color={PALETTE[1]} empty={T("Koi kharid nahi.")} />
         </Panel>
-        <Panel title="Top 10 customers">
-          <HBarChart items={d.top_customers.map((x) => ({ label: x.name, value: Number(x.value), sub: `${fmt(kgToMaund(x.kg), 0)} md` }))} color={PALETTE[0]} empty="Koi sale nahi." />
+        <Panel title={T("Top 10 customers")}>
+          <HBarChart items={d.top_customers.map((x) => ({ label: x.name, value: Number(x.value), sub: `${fmt(kgToMaund(x.kg), 0)} md` }))} color={PALETTE[0]} empty={T("Koi sale nahi.")} />
         </Panel>
       </div>
 
-      <Panel title="Recovery — variety-wise">
+      <Panel title={T("Recovery — variety-wise")}>
         <div className="tablewrap">
           <table className="data">
-            <thead><tr><th>Variety</th><th className="r">Paddy (kg)</th><th className="r">Chawal + toota (kg)</th><th className="r">Recovery</th><th className="r">Head rice</th></tr></thead>
+            <thead><tr><th>{T("Variety")}</th><th className="r">{T("Paddy (kg)")}</th><th className="r">{T("Chawal + toota (kg)")}</th><th className="r">{T("Recovery")}</th><th className="r">{T("Head rice")}</th></tr></thead>
             <tbody>
               {d.recovery_by_variety.length ? d.recovery_by_variety.map((x) => (
                 <tr key={x.name}><td>{x.name}</td><td className="r">{fmtNum(x.input)}</td><td className="r">{fmtNum(x.rice)}</td>
                   <td className="r"><b>{pct(x.pct)}</b></td><td className="r">{pct(Number(x.input) ? (Number(x.full_rice) / Number(x.input)) * 100 : 0)}</td></tr>
-              )) : <tr><td colSpan={5} className="empty">Is muddat mein production nahi.</td></tr>}
+              )) : <tr><td colSpan={5} className="empty">{T("Is muddat mein production nahi.")}</td></tr>}
             </tbody>
           </table>
         </div>
       </Panel>
 
       <Panel
-        title="Udhaar ki umar (Ageing) — aaj tak"
+        title={T("Udhaar ki umar (Ageing) — aaj tak")}
         action={<>
-          <button type="button" className="btn small" onClick={printAging}>Print</button>
+          <button type="button" className="btn small" onClick={printAging}>{T("Print")}</button>
           <button type="button" className="btn small" onClick={() => exportCSV(`ageing_${agingSide}.csv`, ['Party', 'Type', 'Balance', '0-30', '31-60', '61-90', '90+', 'Oldest'],
-            agingRows.map((r) => [r.party_name, r.party_type, r.balance, r.d0_30, r.d31_60, r.d61_90, r.d90_plus, r.oldest]))}>CSV</button>
+            agingRows.map((r) => [r.party_name, r.party_type, r.balance, r.d0_30, r.d31_60, r.d61_90, r.d90_plus, r.oldest]))}>{T("CSV")}</button>
         </>}
       >
         <div className="filterbar">
-          <Field label="Dikhayein">
+          <Field label={T("Dikhayein")}>
             <select value={agingSide} onChange={(e) => setAgingSide(e.target.value)}>
-              <option value="receivable">Lena hai (Receivables)</option>
-              <option value="payable">Dena hai (Payables)</option>
+              <option value="receivable">{T("Lena hai (Receivables)")}</option>
+              <option value="payable">{T("Dena hai (Payables)")}</option>
             </select>
           </Field>
         </div>
         <div className="cardgrid">
-          <StatCard n={rs(agingTotals.balance)} l={agingSide === 'receivable' ? 'Kul lena' : 'Kul dena'} />
-          <StatCard n={rs(agingTotals.d0_30)} l="0 – 30 din" />
-          <StatCard n={rs(agingTotals.d31_60)} l="31 – 60 din" />
-          <StatCard n={rs(agingTotals.d61_90)} l="61 – 90 din" warn={agingTotals.d61_90 > 0} />
-          <StatCard n={rs(agingTotals.d90_plus)} l="90 din se purana" warn={agingTotals.d90_plus > 0} />
+          <StatCard n={rs(agingTotals.balance)} l={agingSide === 'receivable' ? T("Kul lena") : T("Kul dena")} />
+          <StatCard n={rs(agingTotals.d0_30)} l={T("0 – 30 din")} />
+          <StatCard n={rs(agingTotals.d31_60)} l={T("31 – 60 din")} />
+          <StatCard n={rs(agingTotals.d61_90)} l={T("61 – 90 din")} warn={agingTotals.d61_90 > 0} />
+          <StatCard n={rs(agingTotals.d90_plus)} l={T("90 din se purana")} warn={agingTotals.d90_plus > 0} />
         </div>
         <div className="tablewrap">
           <table className="data">
-            <thead><tr><th>Party</th><th className="r">Kul</th><th className="r">0-30</th><th className="r">31-60</th><th className="r">61-90</th><th className="r">90+</th><th>Sab se purana</th></tr></thead>
+            <thead><tr><th>{T("Party")}</th><th className="r">{T("Kul")}</th><th className="r">0-30</th><th className="r">31-60</th><th className="r">61-90</th><th className="r">90+</th><th>{T("Sab se purana")}</th></tr></thead>
             <tbody>
               {agingRows.length ? agingRows.slice(0, 200).map((r) => (
                 <tr key={r.party_type + r.party_name}>
@@ -185,11 +186,11 @@ export default function Analytics() {
                   <td className="r">{Number(r.d90_plus) ? <b className="neg-text">{rs(r.d90_plus)}</b> : rs(0)}</td>
                   <td>{fmtDate(r.oldest)}</td>
                 </tr>
-              )) : <tr><td colSpan={7} className="empty">Koi baqaya nahi.</td></tr>}
+              )) : <tr><td colSpan={7} className="empty">{T("Koi baqaya nahi.")}</td></tr>}
             </tbody>
           </table>
         </div>
-        <div className="note">Umar FIFO se: pehle aayi raqam pehle wasool/ada maani jati hai, baqaya sab se taaza entries ka hota hai.</div>
+        <div className="note">{T("Umar FIFO se: pehle aayi raqam pehle wasool/ada maani jati hai, baqaya sab se taaza entries ka hota hai.")}</div>
       </Panel>
     </>
   );

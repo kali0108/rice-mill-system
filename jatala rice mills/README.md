@@ -1,4 +1,4 @@
-# Kanta Khata v5 — Rice Mill Manager
+# Jatala Rice Mills v5 — Rice Mill Manager
 
 Pakistani rice mill ka mukammal hisaab-kitaab: **paddy kharid (kanta parchi) → khata → milling → stock → sale (bill) → rokar → reports**.
 Mobile aur computer dono par chalta hai, bina internet ke bhi entries leta hai, aur kai staff members ek waqt mein apne apne role ke mutabiq kaam karte hain.
@@ -27,6 +27,30 @@ Setup ke liye: **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** · Kya badla: **[C
 | 14 | Rozana hisaab | **Cash Book / Rokar**, Dashboard | Cash/Bank opening-closing, alerts |
 | 15 | Munafa aur laagat | **Reports** → Laagat (fi maund chawal kitne ka para), P&L · **Stats** | Variety/rate/recovery trends |
 | 16 | Mahina band, season khatam | **Mill Settings** → Hisaab lock · **Reset / Naya Season** (carry forward) | Baqaya, stock, cash, boriyan, baqi sauda agle season mein |
+
+## Roles aur custom permissions (v5.4)
+
+| Role | Kaam |
+|---|---|
+| **Owner (Admin)** | Sab kuch. Akela yeh kar sakta hai: Mill Settings, hisaab lock, Restore, data delete / Reset, kisi ko Owner/Manager banana |
+| **Manager** | Sab modules mein poora kaam + **Users & Roles**: Munshi/Godown/Sales staff ke accounts banana, suspend/delete, password reset aur **un ki permissions**. Activity Log aur Backup download |
+| **Munshi / Accountant** | Kharid, khata, payments, rokar, tax/zakat, products, sauda (+ production, stock, sales) |
+| **Godown Incharge** | Kanta, sukhai, production, stock, bardana, mazdoori, transport, machinery |
+| **Sales Staff** | Parties, sales/billing, sale ke saude |
+
+**Custom permissions:** Owner/Manager har user ke liye har module mein **Dekhna / Naya / Badalna / Delete** alag on/off kar sakte hain (Users & Roles → Permissions) — jaise Munshi kharid daal sake magar delete na kar sake, ya Sales staff ko khata/rokar dikhe hi na. Jo module "Dekhna" band ho woh menu se bhi ghaib ho jata hai. Yeh database (row-level security) mein lagta hai, sirf screen par nahi. Sirf Owner kisi ko Owner/Manager bana sakta hai aur Manager ki permissions badal sakta hai; koi apna role/permissions khud nahi badal sakta.
+
+## Zaban, Dark mode, Guide
+
+- Upar **EN / UR** se poori app English ya Roman Urdu mein (har device par yaad rehta hai).
+- **☾ / ☀** se Dark / Light mode.
+- **Guide / Madad** page: har user ko us ka role, us ki ijazat ki table, fasal se bazaar tak ka process, aur jo hisse woh khol sakta hai un ka step-by-step tareeqa — dono zabanon mein.
+
+## Data delete karne ke options (Owner)
+
+**Reset / Delete Data** page par:
+1. **Data delete karein:** registers chunein (kharid, sale, payments, kharche, sukhai…) + muddat (se / tak) → sirf woh data mitta hai; un ki khata entries bhi saath. Lock wali muddat aur Activity Log kabhi delete nahi hote. Owner password + "DELETE" likhna zaroori.
+2. **Reset / Naya Season:** poora reset (balances aage le jayein / sirf parties rakhein / bilkul naya).
 
 ## Modules
 

@@ -1,7 +1,9 @@
-// Kanta Khata — admin-create-user Edge Function (v5)
+// Jatala Rice Mills — admin-create-user Edge Function (v5.4)
 //
-// Owner-only actions, checked server-side with the service-role key (which
-// must never be in the browser — that is why this runs on Supabase):
+// Owner / Manager actions, checked server-side with the service-role key (which
+// must never be in the browser — that is why this runs on Supabase).
+// A Manager may only create / reset / delete staff below him (munshi,
+// godown_incharge, sales_staff); only the Owner can touch Owners/Managers.
 //   { action: "create", email, password, full_name, role }
 //   { action: "reset_password", target_user, password }
 //   { action: "list" }                      -> login emails for the Users page
@@ -15,7 +17,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.116.0';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-const ROLES = ['owner', 'munshi', 'godown_incharge', 'sales_staff'];
+const ROLES = ['owner', 'manager', 'munshi', 'godown_incharge', 'sales_staff'];
+const STAFF = ['munshi', 'godown_incharge', 'sales_staff'];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const cors = {
@@ -51,7 +54,8 @@ Deno.serve(async (req: Request) => {
     if (callerErr || !caller?.user) return json({ error: 'Session khatam ho gaya — dobara login karein' }, 401);
 
     const { data: me } = await admin.from('profiles').select('role, status').eq('id', caller.user.id).maybeSingle();
-    if (!me || me.role !== 'owner' || me.status !== 'active') return json({ error: 'Yeh kaam sirf Owner kar sakta hai' }, 403);
+    if (!me || !['owner', 'manager'].includes(me.role) || me.status !== 'active') return json({ error: 'Yeh kaam sirf Owner ya Manager kar sakta hai' }, 403);
+    const isOwner = me.role === 'owner';
 
     let body: Record<string, unknown>;
     try {
@@ -80,6 +84,7 @@ Deno.serve(async (req: Request) => {
       if (!EMAIL_RE.test(email)) return json({ error: 'Email sahi nahi hai' }, 400);
       if (password.length < 8) return json({ error: 'Password kam az kam 8 characters ka ho' }, 400);
       if (!ROLES.includes(role)) return json({ error: 'Role ghalat hai' }, 400);
+      if (!isOwner && !STAFF.includes(role)) return json({ error: 'Manager sirf Munshi, Godown aur Sales staff bana sakta hai' }, 403);
 
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email, password, email_confirm: true, user_metadata: { full_name: fullName },
@@ -104,6 +109,7 @@ Deno.serve(async (req: Request) => {
       }
       const { data: targetProfile } = await admin.from('profiles').select('role').eq('id', target).maybeSingle();
       if (targetProfile?.role === 'owner') return json({ error: 'Doosre Owner ka account yahan se nahi badla ja sakta' }, 403);
+      if (!isOwner && targetProfile?.role === 'manager') return json({ error: 'Manager doosre Manager ka account nahi badal sakta' }, 403);
 
       if (action === 'reset_password') {
         const password = String(body.password ?? '');

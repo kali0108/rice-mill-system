@@ -2,6 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import './styles.css';
+import { applyTheme, getTheme } from './lib/theme';
+import { getLang } from './lib/i18n';
+
+applyTheme(getTheme());
+document.documentElement.lang = getLang() === 'en' ? 'en' : 'ur-Latn';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -28,6 +33,6 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         });
       });
       setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000);
-    }).catch((e) => console.warn('[Kanta Khata] service worker not registered', e));
+    }).catch((e) => console.warn('[Jatala Rice Mills] service worker not registered', e));
   });
 }

@@ -156,7 +156,7 @@ export function syncOutbox(supabase) {
         result.synced++;
         result.tables.add(a.table);
       } else if (isRetryableError(res)) {
-        console.warn('[Kanta Khata] sync paused:', errorMessage(res.error));
+        console.warn('[Jatala Rice Mills] sync paused:', errorMessage(res.error));
         break;
       } else {
         await moveToFailed(a, res.error);
@@ -174,7 +174,7 @@ export function syncOutbox(supabase) {
 
 // ---------------------------------------------------------------- read cache
 export async function cacheSet(key, rows) {
-  try { await set(CACHE_PREFIX + key, rows); } catch (e) { console.warn('[Kanta Khata] cache write failed', e); }
+  try { await set(CACHE_PREFIX + key, rows); } catch (e) { console.warn('[Jatala Rice Mills] cache write failed', e); }
 }
 export async function cacheGet(key) {
   try { return (await get(CACHE_PREFIX + key)) ?? null; } catch { return null; }

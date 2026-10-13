@@ -1,3 +1,4 @@
+import { T } from './i18n.js';
 export const PARTY_TYPES = ['Kisan', 'Arhti', 'Customer', 'Supplier', 'Transporter', 'Broker', 'Labor', 'Bank', 'Other'];
 
 export const PARTY_TYPE_LABELS = {
@@ -20,11 +21,11 @@ export const DEFAULT_VARIETIES = [
 ];
 
 export const PRODUCT_CATEGORIES = [
-  { value: 'paddy', label: 'Paddy (Dhaan)' },
-  { value: 'rice', label: 'Chawal — full grain' },
-  { value: 'broken', label: 'Toota / Kanki (broken)' },
-  { value: 'byproduct', label: 'By-product (phak, toori…)' },
-  { value: 'other', label: 'Other' },
+  { value: 'paddy', label: T("Paddy (Dhaan)") },
+  { value: 'rice', label: T("Chawal — full grain") },
+  { value: 'broken', label: T("Toota / Kanki (broken)") },
+  { value: 'byproduct', label: T("By-product (phak, toori…)") },
+  { value: 'other', label: T("Other") },
 ];
 export const CATEGORY_LABELS = Object.fromEntries(PRODUCT_CATEGORIES.map((c) => [c.value, c.label]));
 
@@ -42,22 +43,22 @@ export const DEFAULT_PRODUCTS = [
 ];
 
 export const PROCESSES = [
-  { value: 'Raw', label: 'Raw / White Milling' },
-  { value: 'Sella', label: 'Parboiled / Sella' },
-  { value: 'Steam', label: 'Steam' },
+  { value: 'Raw', label: T("Raw / White Milling") },
+  { value: 'Sella', label: T("Parboiled / Sella") },
+  { value: 'Steam', label: T("Steam") },
 ];
 
 export const PAYMENT_METHODS = [
-  { value: 'Cash', label: 'Cash' },
-  { value: 'Bank', label: 'Bank Transfer' },
-  { value: 'Cheque', label: 'Cheque' },
-  { value: 'Online', label: 'Online (JazzCash / Easypaisa / Raast)' },
+  { value: 'Cash', label: T("Cash") },
+  { value: 'Bank', label: T("Bank Transfer") },
+  { value: 'Cheque', label: T("Cheque") },
+  { value: 'Online', label: T("Online (JazzCash / Easypaisa / Raast)") },
 ];
 
 export const PAID_VIA = [
-  { value: 'Cash', label: 'Cash' },
-  { value: 'Bank', label: 'Bank' },
-  { value: 'Udhaar', label: 'Udhaar (party ke khata mein)' },
+  { value: 'Cash', label: T("Cash") },
+  { value: 'Bank', label: T("Bank") },
+  { value: 'Udhaar', label: T("Udhaar (party ke khata mein)") },
 ];
 
 export const EXPENSE_CATEGORIES = [
@@ -103,44 +104,44 @@ export const CASH_CATEGORIES = [
 export const TAX_TYPES = ['Sales Tax/GST', 'Withholding Tax', 'Income Tax (Advance)', 'Market Fee', 'Other'];
 
 export const PAY_TYPES = [
-  { value: 'Daily', label: 'Dihari (Daily wage)', unit: 'Din', rate: 'Dihari (Rs)' },
-  { value: 'Piece', label: 'Piece rate (per bag)', unit: 'Bags', rate: 'Rate per bag (Rs)' },
-  { value: 'Monthly', label: 'Monthly salary', unit: 'Mahine', rate: 'Tankhwah (Rs)' },
+  { value: 'Daily', label: T("Dihari (Daily wage)"), unit: T("Din"), rate: 'Dihari (Rs)' },
+  { value: 'Piece', label: T("Piece rate (per bag)"), unit: T("Bags"), rate: 'Rate per bag (Rs)' },
+  { value: 'Monthly', label: T("Monthly salary"), unit: T("Mahine"), rate: 'Tankhwah (Rs)' },
 ];
 
 export const SOURCE_LABELS = {
-  manual: 'Manual',
-  purchase: 'Kharid',
-  sale: 'Sale',
-  payment: 'Payment',
-  labor: 'Mazdoori',
-  labor_pay: 'Mazdoori adaigi',
-  expense: 'Kharcha (udhaar)',
-  machinery: 'Machine (udhaar)',
-  transport: 'Transport (udhaar)',
-  opening: 'Opening',
-  bags: 'Bardana',
-  brought_forward: 'B/F',
+  manual: T('Manual'),
+  purchase: T('Kharid'),
+  sale: T('Sale'),
+  payment: T('Payment'),
+  labor: T('Mazdoori'),
+  labor_pay: T('Mazdoori adaigi'),
+  expense: T('Kharcha (udhaar)'),
+  machinery: T('Machine (udhaar)'),
+  transport: T('Transport (udhaar)'),
+  opening: T('Opening'),
+  bags: T('Bardana'),
+  brought_forward: T('B/F'),
 };
 
 export const CASH_SOURCE_LABELS = {
-  payment: 'Payment',
-  purchase: 'Kharid',
-  sale: 'Sale',
-  expense: 'Kharcha',
-  machinery: 'Machine',
-  transport: 'Transport',
-  labor: 'Mazdoori',
-  zakat: 'Zakat',
-  cash: 'Cash Book',
+  payment: T('Payment'),
+  purchase: T('Kharid'),
+  sale: T('Sale'),
+  expense: T('Kharcha'),
+  machinery: T('Machine'),
+  transport: T('Transport'),
+  labor: T('Mazdoori'),
+  zakat: T('Zakat'),
+  cash: T('Cash Book'),
 };
 
 export const CURRENCIES = ['PKR', 'USD', 'EUR', 'GBP', 'AED', 'SAR', 'CNY'];
 
 export const RATE_UNITS = [
-  { value: 'maund', label: 'Fi maund (40 kg)' },
-  { value: 'kg', label: 'Fi kg' },
-  { value: 'mt', label: 'Fi metric ton (1000 kg)' },
+  { value: 'maund', label: T("Fi maund (40 kg)") },
+  { value: 'kg', label: T("Fi kg") },
+  { value: 'mt', label: T("Fi metric ton (1000 kg)") },
 ];
 export const RATE_UNIT_SHORT = { maund: 'md', kg: 'kg', mt: 'MT' };
 
@@ -150,16 +151,16 @@ export const PAYMENT_TERMS = ['Advance', 'Cash on delivery', 'Credit 15 din', 'C
 export const CONTRACT_STATUSES = ['Open', 'Completed', 'Cancelled'];
 
 export const WEIGH_KINDS = [
-  { value: 'Purchase', label: 'Kharid (paddy aamad)' },
-  { value: 'Sale', label: 'Sale (maal rawana)' },
-  { value: 'Public', label: 'Public (bahar ka wazan, fee)' },
+  { value: 'Purchase', label: T("Kharid (paddy aamad)") },
+  { value: 'Sale', label: T("Sale (maal rawana)") },
+  { value: 'Public', label: T("Public (bahar ka wazan, fee)") },
 ];
 
 export const DRYING_METHODS = ['Dhoop (sun)', 'Dryer (machine)', 'Dono'];
 export const BAG_TYPES = ['Jute', 'PP (plastic)', 'Other'];
 export const BAG_MOVEMENTS = [
-  { value: 'Issued', label: 'Party ko di (issued)' },
-  { value: 'Returned', label: 'Party se wapas aayi (returned)' },
-  { value: 'Purchased', label: 'Mill ne khareedi (stock mein)' },
-  { value: 'Used', label: 'Istemal / kharab / bech di' },
+  { value: 'Issued', label: T("Party ko di (issued)") },
+  { value: 'Returned', label: T("Party se wapas aayi (returned)") },
+  { value: 'Purchased', label: T("Mill ne khareedi (stock mein)") },
+  { value: 'Used', label: T("Istemal / kharab / bech di") },
 ];

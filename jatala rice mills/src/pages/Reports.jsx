@@ -8,6 +8,7 @@ import { productionCalc, fmt, fmtNum, rs, pct, sum, kgToMaund, r2 } from '../lib
 import { fmtDate, monthKey, monthLabel } from '../lib/dates';
 import { printTable } from '../lib/print';
 import { Panel, DateRangeBar, Empty, StatCard, Loading, Badge } from '../components/ui';
+import { T } from '../lib/i18n';
 
 function groupBy(rows, keyFn) {
   const m = new Map();
@@ -102,37 +103,34 @@ export default function Reports() {
   if (loading) return <Loading />;
 
   const printPL = () => printTable({
-    title: 'Munafa / Nuqsan (P&L)', subtitle: period,
-    columns: [{ label: 'Hisaab' }, { label: 'Rupay', right: true }],
+    title: T("Munafa / Nuqsan (P&L)"), subtitle: period,
+    columns: [{ label: T("Hisaab") }, { label: T("Rupay"), right: true }],
     rows: [
-      ['Sale (tax ke baghair)', rs(r.revenue)],
-      ['− Paddy kharid (commission samet, mazdoori katoti nikaal kar)', rs(r.paddyCost)],
-      ['− Mazdoori (gross)', rs(r.laborCost)],
-      ['− Rozana kharche', rs(r.expenseCost)],
-      ['− Machine repair', rs(r.machineCost)],
-      ['− Transport / commission', rs(r.transportCost)],
+      [T("Sale (tax ke baghair)"), rs(r.revenue)],
+      [T("− Paddy kharid (commission samet, mazdoori katoti nikaal kar)"), rs(r.paddyCost)],
+      [T("− Mazdoori (gross)"), rs(r.laborCost)],
+      [T("− Rozana kharche"), rs(r.expenseCost)],
+      [T("− Machine repair"), rs(r.machineCost)],
+      [T("− Transport / commission"), rs(r.transportCost)],
     ],
-    totals: ['Khalis munafa / nuqsan', rs(r.net)],
-    notes: 'Is mein stock ki tabdeeli (opening/closing stock), depreciation aur kiraya shamil nahi. GST alag (sirkar ka) hai.',
+    totals: [T("Khalis munafa / nuqsan"), rs(r.net)],
+    notes: T("Is mein stock ki tabdeeli (opening/closing stock), depreciation aur kiraya shamil nahi. GST alag (sirkar ka) hai."),
   }, settings);
 
   return (
     <>
-      <Panel title="Report ki muddat">
+      <Panel title={T("Report ki muddat")}>
         <DateRangeBar range={range} />
         <div className="cardgrid">
-          <StatCard n={rs(r.revenue)} l="Sale (tax ke baghair)" />
-          <StatCard n={rs(r.paddyCost)} l={`Paddy kharid (${fmt(kgToMaund(r.paddyKg), 0)} maund)`} />
-          <StatCard n={rs(r.laborCost + r.expenseCost + r.machineCost + r.transportCost)} l="Kharche (mazdoori, rozana, machine, transport)" />
-          <StatCard n={rs(r.net)} l="Khalis munafa / nuqsan" warn={r.net < 0} good={r.net > 0} />
-          <StatCard n={pct(r.milled ? (r.riceOut / r.milled) * 100 : 0)} l={`Recovery (${fmt(r.milled)} kg paddy milled)`} />
-          <StatCard n={rs(r.gst)} l="GST wasool (sirkar ka)" />
+          <StatCard n={rs(r.revenue)} l={T("Sale (tax ke baghair)")} />
+          <StatCard n={rs(r.paddyCost)} l={`${T("Paddy kharid (")}${fmt(kgToMaund(r.paddyKg), 0)}${T(" maund)")}`} />
+          <StatCard n={rs(r.laborCost + r.expenseCost + r.machineCost + r.transportCost)} l={T("Kharche (mazdoori, rozana, machine, transport)")} />
+          <StatCard n={rs(r.net)} l={T("Khalis munafa / nuqsan")} warn={r.net < 0} good={r.net > 0} />
+          <StatCard n={pct(r.milled ? (r.riceOut / r.milled) * 100 : 0)} l={`${T("Recovery (")}${fmt(r.milled)}${T(" kg paddy milled)")}`} />
+          <StatCard n={rs(r.gst)} l={T("GST wasool (sirkar ka)")} />
         </div>
-        <button type="button" className="btn small" onClick={printPL}>P&amp;L Print</button>
-        <div className="note">
-          Munafa = Sale (GST ke baghair) − paddy kharid − mazdoori − kharche − machine − transport, sirf is muddat ka. Stock ki tabdeeli, depreciation aur
-          kiraya shamil nahi — pakka hisaab ke liye accountant se closing stock ki qeemat shamil karwayein.
-        </div>
+        <button type="button" className="btn small" onClick={printPL}>{T("P&L Print")}</button>
+        <div className="note">{T("Munafa = Sale (GST ke baghair) − paddy kharid − mazdoori − kharche − machine − transport, sirf is muddat ka. Stock ki tabdeeli, depreciation aur kiraya shamil nahi — pakka hisaab ke liye accountant se closing stock ki qeemat shamil karwayein.")}</div>
       </Panel>
 
       {costing.data && (() => {
@@ -147,102 +145,102 @@ export default function Reports() {
           ...c.byproducts.map((x) => [`− ${x.product}: ${fmtNum(x.kg)} kg × ${rs(x.per_kg)}/kg (sale rate)`, '− ' + rs(x.value)]),
         ].filter(Boolean);
         return (
-          <Panel title="Laagat (Costing) — chawal kitne ka para?" action={<button type="button" className="btn small" onClick={() => printTable({
-            title: 'Laagat (Costing)', subtitle: period, columns: [{ label: 'Hisaab' }, { label: 'Rupay', right: true }],
-            rows: [...lines, ['Chawal ki kul laagat', rs(c.net_cost)], [`Chawal output: ${fmtNum(c.rice_kg)} kg`, ''],
-              ['Laagat fi maund (40 kg)', rs(perKg * 40)], ['Ausat sale rate fi maund', sale ? rs(sale * 40) : '—']],
-            totals: ['Munafa fi maund', margin == null ? '—' : rs(margin)],
-            notes: 'Paddy ki qeemat = ausat kharid rate (kul raqam ÷ kg). By-products sale ke ausat rate par minus kiye gaye.',
-          }, settings)}>Print</button>}>
+          <Panel title={T("Laagat (Costing) — chawal kitne ka para?")} action={<button type="button" className="btn small" onClick={() => printTable({
+            title: T("Laagat (Costing)"), subtitle: period, columns: [{ label: T("Hisaab") }, { label: T("Rupay"), right: true }],
+            rows: [...lines, [T("Chawal ki kul laagat"), rs(c.net_cost)], [`${T("Chawal output: ")}${fmtNum(c.rice_kg)}${T(" kg")}`, ''],
+              [T("Laagat fi maund (40 kg)"), rs(perKg * 40)], [T("Ausat sale rate fi maund"), sale ? rs(sale * 40) : '—']],
+            totals: [T("Munafa fi maund"), margin == null ? '—' : rs(margin)],
+            notes: T("Paddy ki qeemat = ausat kharid rate (kul raqam ÷ kg). By-products sale ke ausat rate par minus kiye gaye."),
+          }, settings)}>{T("Print")}</button>}>
             <div className="cardgrid">
-              <StatCard n={c.rice_kg ? rs(perKg * 40) : '—'} l="Chawal ki laagat fi maund" />
-              <StatCard n={sale ? rs(sale * 40) : '—'} l="Ausat sale rate fi maund (chawal + toota)" />
-              <StatCard n={margin == null ? '—' : rs(margin)} l="Munafa / nuqsan fi maund" warn={margin != null && margin < 0} good={margin != null && margin > 0} />
-              <StatCard n={rs(c.net_cost)} l={`Kul laagat · ${fmt(kgToMaund(c.rice_kg), 1)} md chawal`} />
+              <StatCard n={c.rice_kg ? rs(perKg * 40) : '—'} l={T("Chawal ki laagat fi maund")} />
+              <StatCard n={sale ? rs(sale * 40) : '—'} l={T("Ausat sale rate fi maund (chawal + toota)")} />
+              <StatCard n={margin == null ? '—' : rs(margin)} l={T("Munafa / nuqsan fi maund")} warn={margin != null && margin < 0} good={margin != null && margin > 0} />
+              <StatCard n={rs(c.net_cost)} l={`${T("Kul laagat · ")}${fmt(kgToMaund(c.rice_kg), 1)}${T(" md chawal")}`} />
             </div>
             <div className="tablewrap">
               <table className="data compact">
                 <tbody>
                   {lines.map(([k, v]) => <tr key={k}><td className="wrap">{k}</td><td className="r">{v}</td></tr>)}
-                  <tr><td><b>Chawal ki kul laagat</b></td><td className="r"><b>{rs(c.net_cost)}</b></td></tr>
+                  <tr><td><b>{T("Chawal ki kul laagat")}</b></td><td className="r"><b>{rs(c.net_cost)}</b></td></tr>
                 </tbody>
               </table>
             </div>
-            <div className="note">Paddy ki qeemat ausat kharid rate (commission samet) se, sukhai ki kami bhi shamil; by-products (phak, toori…) ki qeemat unke ausat sale rate par minus. Jo by-product abhi bika nahi us ki qeemat zero maani gayi.</div>
+            <div className="note">{T("Paddy ki qeemat ausat kharid rate (commission samet) se, sukhai ki kami bhi shamil; by-products (phak, toori…) ki qeemat unke ausat sale rate par minus. Jo by-product abhi bika nahi us ki qeemat zero maani gayi.")}</div>
           </Panel>
         );
       })()}
 
-      <Panel title="Paddy kharid — variety-wise" action={<button type="button" className="btn small" onClick={() => printTable({
-        title: 'Variety-wise Kharid', subtitle: period,
-        columns: [{ label: 'Variety' }, { label: 'Entries', right: true }, { label: 'Bags', right: true }, { label: 'Kg', right: true }, { label: 'Maund', right: true }, { label: 'Raqam', right: true }, { label: 'Avg rate/maund', right: true }],
+      <Panel title={T("Paddy kharid — variety-wise")} action={<button type="button" className="btn small" onClick={() => printTable({
+        title: T("Variety-wise Kharid"), subtitle: period,
+        columns: [{ label: T("Variety") }, { label: T("Entries"), right: true }, { label: T("Bags"), right: true }, { label: T("Kg"), right: true }, { label: T("Maund"), right: true }, { label: T("Raqam"), right: true }, { label: T("Avg rate/maund"), right: true }],
         rows: r.byVariety.map((v) => [v.k, v.n, fmt(v.bags), fmtNum(v.kg), fmt(kgToMaund(v.kg), 2), rs(v.amt), rs(v.avg)]),
-      }, settings)}>Print</button>}>
+      }, settings)}>{T("Print")}</button>}>
         <div className="tablewrap"><table className="data">
-          <thead><tr><th>Variety</th><th className="r">Entries</th><th className="r">Bags</th><th className="r">Kg</th><th className="r">Maund</th><th className="r">Raqam</th><th className="r">Avg rate / maund</th></tr></thead>
+          <thead><tr><th>{T("Variety")}</th><th className="r">{T("Entries")}</th><th className="r">{T("Bags")}</th><th className="r">{T("Kg")}</th><th className="r">{T("Maund")}</th><th className="r">{T("Raqam")}</th><th className="r">{T("Avg rate / maund")}</th></tr></thead>
           <tbody>{r.byVariety.length ? r.byVariety.map((v) => (
             <tr key={v.k}><td>{v.k}</td><td className="r">{v.n}</td><td className="r">{fmt(v.bags)}</td><td className="r">{fmtNum(v.kg)}</td><td className="r">{fmt(kgToMaund(v.kg), 2)}</td><td className="r">{rs(v.amt)}</td><td className="r">{rs(v.avg)}</td></tr>
-          )) : <Empty colSpan={7} text="Is muddat mein koi kharid nahi." />}</tbody>
+          )) : <Empty colSpan={7} text={T("Is muddat mein koi kharid nahi.")} />}</tbody>
         </table></div>
       </Panel>
 
-      <Panel title="Sale — item-wise" action={<button type="button" className="btn small" onClick={() => printTable({
-        title: 'Item-wise Sale', subtitle: period,
-        columns: [{ label: 'Item' }, { label: 'Bills', right: true }, { label: 'Kg', right: true }, { label: 'Raqam', right: true }, { label: 'Avg Rs/kg', right: true }, { label: 'Avg Rs/maund', right: true }],
+      <Panel title={T("Sale — item-wise")} action={<button type="button" className="btn small" onClick={() => printTable({
+        title: T("Item-wise Sale"), subtitle: period,
+        columns: [{ label: T("Item") }, { label: T("Bills"), right: true }, { label: T("Kg"), right: true }, { label: T("Raqam"), right: true }, { label: T("Avg Rs/kg"), right: true }, { label: T("Avg Rs/maund"), right: true }],
         rows: r.byItem.map((v) => [v.k, v.n, fmtNum(v.kg), rs(v.amt), rs(v.perKg), rs(v.perKg * 40)]),
-      }, settings)}>Print</button>}>
+      }, settings)}>{T("Print")}</button>}>
         <div className="tablewrap"><table className="data">
-          <thead><tr><th>Item</th><th className="r">Bills</th><th className="r">Kg</th><th className="r">Raqam (tax ke baghair)</th><th className="r">Avg Rs/kg</th><th className="r">Avg Rs/maund</th></tr></thead>
+          <thead><tr><th>{T("Item")}</th><th className="r">{T("Bills")}</th><th className="r">{T("Kg")}</th><th className="r">{T("Raqam (tax ke baghair)")}</th><th className="r">{T("Avg Rs/kg")}</th><th className="r">{T("Avg Rs/maund")}</th></tr></thead>
           <tbody>{r.byItem.length ? r.byItem.map((v) => (
             <tr key={v.k}><td>{v.k}</td><td className="r">{v.n}</td><td className="r">{fmtNum(v.kg)}</td><td className="r">{rs(v.amt)}</td><td className="r">{rs(v.perKg)}</td><td className="r">{rs(v.perKg * 40)}</td></tr>
-          )) : <Empty colSpan={6} text="Is muddat mein koi sale nahi." />}</tbody>
+          )) : <Empty colSpan={6} text={T("Is muddat mein koi sale nahi.")} />}</tbody>
         </table></div>
       </Panel>
 
-      <Panel title="Production — process / variety-wise recovery">
+      <Panel title={T("Production — process / variety-wise recovery")}>
         <div className="tablewrap"><table className="data">
-          <thead><tr><th>Process — Variety</th><th className="r">Batches</th><th className="r">Paddy kg</th><th className="r">Chawal kg</th><th className="r">Recovery</th><th className="r">Head rice</th></tr></thead>
+          <thead><tr><th>{T("Process — Variety")}</th><th className="r">{T("Batches")}</th><th className="r">{T("Paddy kg")}</th><th className="r">{T("Chawal kg")}</th><th className="r">{T("Recovery")}</th><th className="r">{T("Head rice")}</th></tr></thead>
           <tbody>{r.byProcess.length ? r.byProcess.map((v) => (
             <tr key={v.k}><td>{v.k}</td><td className="r">{v.n}</td><td className="r">{fmtNum(v.input)}</td><td className="r">{fmtNum(v.rice)}</td><td className="r"><b>{pct(v.rec)}</b></td><td className="r">{pct(v.head)}</td></tr>
-          )) : <Empty colSpan={6} text="Is muddat mein koi production nahi." />}</tbody>
+          )) : <Empty colSpan={6} text={T("Is muddat mein koi production nahi.")} />}</tbody>
         </table></div>
       </Panel>
 
-      <Panel title="Kharche — category-wise">
+      <Panel title={T("Kharche — category-wise")}>
         <div className="tablewrap"><table className="data">
-          <thead><tr><th>Category</th><th className="r">Raqam</th><th className="r">Hissa</th></tr></thead>
+          <thead><tr><th>{T("Category")}</th><th className="r">{T("Raqam")}</th><th className="r">{T("Hissa")}</th></tr></thead>
           <tbody>{r.byCategory.length ? r.byCategory.map((v) => (
             <tr key={v.k}><td>{v.k}</td><td className="r">{rs(v.amt)}</td><td className="r">{pct(r.totalCost - r.paddyCost ? (v.amt / (r.totalCost - r.paddyCost)) * 100 : 0)}</td></tr>
-          )) : <Empty colSpan={3} text="Koi kharcha nahi." />}</tbody>
+          )) : <Empty colSpan={3} text={T("Koi kharcha nahi.")} />}</tbody>
         </table></div>
       </Panel>
 
-      <Panel title="Mahana khulasa (month-wise)">
+      <Panel title={T("Mahana khulasa (month-wise)")}>
         <div className="tablewrap"><table className="data">
-          <thead><tr><th>Mahina</th><th className="r">Paddy kg</th><th className="r">Milled kg</th><th className="r">Kharid</th><th className="r">Sale</th><th className="r">Kharche</th><th className="r">Farq</th></tr></thead>
+          <thead><tr><th>{T("Mahina")}</th><th className="r">{T("Paddy kg")}</th><th className="r">{T("Milled kg")}</th><th className="r">{T("Kharid")}</th><th className="r">{T("Sale")}</th><th className="r">{T("Kharche")}</th><th className="r">{T("Farq")}</th></tr></thead>
           <tbody>{r.monthly.length ? r.monthly.map(([k, o]) => {
             const d = o.sale - o.purchase - o.cost;
             return (
               <tr key={k}><td>{monthLabel(k)}</td><td className="r">{fmtNum(o.paddyKg)}</td><td className="r">{fmtNum(o.milledKg)}</td><td className="r">{rs(o.purchase)}</td><td className="r">{rs(o.sale)}</td><td className="r">{rs(o.cost)}</td>
                 <td className={`r ${d < 0 ? 'neg-text' : ''}`}><b>{rs(d)}</b></td></tr>
             );
-          }) : <Empty colSpan={7} text="Koi data nahi." />}</tbody>
+          }) : <Empty colSpan={7} text={T("Koi data nahi.")} />}</tbody>
         </table></div>
       </Panel>
 
       <div className="two-col">
-        <Panel title="Sab se zyada dena (Payables)">
+        <Panel title={T("Sab se zyada dena (Payables)")}>
           <div className="tablewrap"><table className="data">
             <tbody>{payables.length ? payables.map((b) => (
               <tr key={b.party_type + b.party_name}><td><Link to={`/statement?type=${encodeURIComponent(b.party_type)}&name=${encodeURIComponent(b.party_name)}`}>{b.party_name}</Link> <Badge>{b.party_type}</Badge></td><td className="r"><b>{rs(b.balance)}</b></td></tr>
-            )) : <Empty colSpan={2} text="Kuch dena baqi nahi." />}</tbody>
+            )) : <Empty colSpan={2} text={T("Kuch dena baqi nahi.")} />}</tbody>
           </table></div>
         </Panel>
-        <Panel title="Sab se zyada lena (Receivables)">
+        <Panel title={T("Sab se zyada lena (Receivables)")}>
           <div className="tablewrap"><table className="data">
             <tbody>{receivables.length ? receivables.map((b) => (
               <tr key={b.party_type + b.party_name}><td><Link to={`/statement?type=${encodeURIComponent(b.party_type)}&name=${encodeURIComponent(b.party_name)}`}>{b.party_name}</Link> <Badge>{b.party_type}</Badge></td><td className="r"><b>{rs(Math.abs(b.balance))}</b></td></tr>
-            )) : <Empty colSpan={2} text="Kuch lena baqi nahi." />}</tbody>
+            )) : <Empty colSpan={2} text={T("Kuch lena baqi nahi.")} />}</tbody>
           </table></div>
         </Panel>
       </div>

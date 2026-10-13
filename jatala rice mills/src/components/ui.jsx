@@ -7,6 +7,7 @@ import { canWrite } from '../lib/roles';
 import { friendlyError } from '../lib/errors';
 import { rs, balanceSide, withCurrent } from '../lib/calc';
 import { fmtDateTime } from '../lib/dates';
+import { T } from '../lib/i18n';
 
 export function StatCard({ n, l, warn, good, sub }) {
   return (
@@ -59,7 +60,7 @@ export function Empty({ colSpan, text = 'Abhi koi entry nahi.' }) {
 }
 
 export function PendingTag() {
-  return <span className="badge zero" title="Offline save hui — internet aane par server par chali jayegi">Sync baqi</span>;
+  return <span className="badge zero" title={T("Offline save hui — internet aane par server par chali jayegi")}>{T("Sync baqi")}</span>;
 }
 
 export function Loading({ text = 'Loading…' }) {
@@ -105,7 +106,7 @@ export function PartyInput({ type, value, onChange, required, placeholder, autoF
         value={value}
         onChange={onChange}
         required={required}
-        placeholder={placeholder || 'Naam likhein ya list se chunein'}
+        placeholder={placeholder || T("Naam likhein ya list se chunein")}
         autoComplete="off"
         autoFocus={autoFocus}
       />
@@ -139,7 +140,7 @@ export function VarietySelect({ value, onChange, required, placeholder = '— Va
 
   async function handle(e) {
     if (e.target.value !== '__new__') return onChange(e);
-    const name = (window.prompt('Nayi variety ka naam (e.g. Basmati 1847):') || '').trim().replace(/\s+/g, ' ');
+    const name = (window.prompt(T("Nayi variety ka naam (e.g. Basmati 1847):")) || '').trim().replace(/\s+/g, ' ');
     if (!name) return undefined;
     const existing = varietyNames.find((n) => n.toLowerCase() === name.toLowerCase());
     if (existing) return onChange({ target: { value: existing } });
@@ -148,7 +149,7 @@ export function VarietySelect({ value, onChange, required, placeholder = '— Va
       toast.error(friendlyError(res.error));
       return undefined;
     }
-    toast.success(`Variety "${name}" list mein add ho gayi.`);
+    toast.success(`${T("Variety \"")}${name}${T("\" list mein add ho gayi.")}`);
     return onChange({ target: { value: name } });
   }
 
@@ -156,7 +157,7 @@ export function VarietySelect({ value, onChange, required, placeholder = '— Va
     <select value={value || ''} onChange={handle} required={required}>
       <option value="">{placeholder}</option>
       {options.map((n) => <option key={n} value={n}>{n}</option>)}
-      {canAdd && <option value="__new__">＋ Nayi variety add karein…</option>}
+      {canAdd && <option value="__new__">{T("＋ Nayi variety add karein…")}</option>}
     </select>
   );
 }
@@ -170,7 +171,7 @@ export function ProductSelect({ value, onChange, categories, required }) {
   );
   return (
     <select value={value || ''} onChange={onChange} required={required}>
-      {!value && <option value="">— Maal chunein —</option>}
+      {!value && <option value="">{T("— Maal chunein —")}</option>}
       {options.map((n) => <option key={n} value={n}>{n}</option>)}
     </select>
   );
@@ -182,11 +183,10 @@ export function BalanceHint({ type, name }) {
   if (!name || !String(name).trim()) return null;
   const party = findParty(type, name);
   const bal = balanceOf(type, name);
-  if (!party && !bal) return <div className="balance-hint new">Nayi party — save karne par list mein shamil ho jayegi.</div>;
+  if (!party && !bal) return <div className="balance-hint new">{T("Nayi party — save karne par list mein shamil ho jayegi.")}</div>;
   const side = balanceSide(bal);
   return (
-    <div className={`balance-hint ${side.kind}`}>
-      Pichla balance: <b>{rs(Math.abs(bal))}</b> — {side.long}
+    <div className={`balance-hint ${side.kind}`}>{T("Pichla balance: ")}<b>{rs(Math.abs(bal))}</b> — {side.long}
       {party?.phone ? <span className="muted"> · {party.phone}</span> : null}
     </div>
   );
@@ -196,7 +196,7 @@ export function DateRangeBar({ range, children }) {
   return (
     <div className="filterbar">
       <label className="field">
-        <span className="lbl">Muddat (Period)</span>
+        <span className="lbl">{T("Muddat (Period)")}</span>
         <select value={range.preset} onChange={(e) => range.setPreset(e.target.value)}>
           {PRESETS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
@@ -204,11 +204,11 @@ export function DateRangeBar({ range, children }) {
       {range.preset === 'custom' && (
         <>
           <label className="field">
-            <span className="lbl">Se (From)</span>
+            <span className="lbl">{T("Se (From)")}</span>
             <input type="date" value={range.customFrom} onChange={(e) => range.setCustom(e.target.value, range.customTo)} />
           </label>
           <label className="field">
-            <span className="lbl">Tak (To)</span>
+            <span className="lbl">{T("Tak (To)")}</span>
             <input type="date" value={range.customTo} onChange={(e) => range.setCustom(range.customFrom, e.target.value)} />
           </label>
         </>
@@ -221,7 +221,7 @@ export function DateRangeBar({ range, children }) {
 export function SearchBox({ value, onChange, placeholder = 'Talash karein…' }) {
   return (
     <label className="field search">
-      <span className="lbl">Talash (Search)</span>
+      <span className="lbl">{T("Talash (Search)")}</span>
       <input type="search" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
     </label>
   );
@@ -240,9 +240,7 @@ export function useShowMore(rows, step = 100) {
   const more = rows.length > limit
     ? (
       <div className="showmore">
-        <button type="button" className="btn small" onClick={() => setLimit((l) => l + step)}>
-          Aur dikhayein ({rows.length - limit} baqi)
-        </button>
+        <button type="button" className="btn small" onClick={() => setLimit((l) => l + step)}>{T("Aur dikhayein (")}{rows.length - limit}{T(" baqi)")}</button>
       </div>
     )
     : null;
@@ -253,10 +251,10 @@ export function FormActions({ saving, editing, onCancel, saveLabel = 'Save Karei
   return (
     <div className="form-actions">
       <button type="submit" className="btn primary" disabled={saving}>
-        {saving ? 'Saving…' : editing ? 'Update Karein' : saveLabel}
+        {saving ? T("Saving…") : editing ? T("Update Karein") : saveLabel}
       </button>
       {extra}
-      {editing && <button type="button" className="btn" onClick={onCancel} disabled={saving}>Cancel</button>}
+      {editing && <button type="button" className="btn" onClick={onCancel} disabled={saving}>{T("Cancel")}</button>}
     </div>
   );
 }
@@ -264,21 +262,21 @@ export function FormActions({ saving, editing, onCancel, saveLabel = 'Save Karei
 export function RowActions({ onEdit, onDelete, onPrint, extra, disabled }) {
   return (
     <div className="row-actions">
-      {onPrint && <button type="button" className="btn small" onClick={onPrint}>Print</button>}
+      {onPrint && <button type="button" className="btn small" onClick={onPrint}>{T("Print")}</button>}
       {extra}
-      {onEdit && <button type="button" className="btn small" onClick={onEdit} disabled={disabled}>Edit</button>}
-      {onDelete && <button type="button" className="btn small danger" onClick={onDelete} disabled={disabled}>Delete</button>}
+      {onEdit && <button type="button" className="btn small" onClick={onEdit} disabled={disabled}>{T("Edit")}</button>}
+      {onDelete && <button type="button" className="btn small danger" onClick={onDelete} disabled={disabled}>{T("Delete")}</button>}
     </div>
   );
 }
 
 export function SyncNote({ lastSynced, offline, error }) {
-  if (offline) return <span className="sync-note warn">Offline — aakhri mehfooz copy dikh rahi hai</span>;
-  if (error) return <span className="sync-note warn">Server se data nahi aa saka</span>;
+  if (offline) return <span className="sync-note warn">{T("Offline — aakhri mehfooz copy dikh rahi hai")}</span>;
+  if (error) return <span className="sync-note warn">{T("Server se data nahi aa saka")}</span>;
   if (!lastSynced) return null;
-  return <span className="sync-note">Updated {fmtDateTime(new Date(lastSynced).toISOString())}</span>;
+  return <span className="sync-note">{T("Updated ")}{fmtDateTime(new Date(lastSynced).toISOString())}</span>;
 }
 
 export function confirmDelete(what) {
-  return window.confirm(`Kya aap waqai "${what}" delete karna chahte hain?\n\nYeh wapas nahi hoga.`);
+  return window.confirm(`${T("Kya aap waqai \"")}${what}${T("\" delete karna chahte hain?\n\nYeh wapas nahi hoga.")}`);
 }
